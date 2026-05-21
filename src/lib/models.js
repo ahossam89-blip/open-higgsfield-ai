@@ -2426,3 +2426,121 @@ export const getResolutionsForVideoModel = (modelId) => {
   if (resInput && resInput.enum) return resInput.enum;
   return [];
 };
+
+// ==========================================
+// Image-to-Video Models
+// ==========================================
+export const i2vModels = [
+  {
+    "id": "seedance-lite-i2v",
+    "name": "Seedance Lite",
+    "inputs": {
+      "prompt": { "type": "string", "title": "Prompt", "name": "prompt", "description": "Describe the motion and animation for the image." },
+      "image_url": { "type": "string", "title": "Image URL", "name": "image_url" },
+      "aspect_ratio": { "enum": ["16:9", "9:16", "1:1", "4:3", "3:4"], "title": "Aspect Ratio", "name": "aspect_ratio", "type": "string", "default": "9:16" },
+      "duration": { "title": "Duration", "name": "duration", "type": "int", "default": 5 },
+      "resolution": { "enum": ["480p", "720p", "1080p"], "title": "Resolution", "name": "resolution", "type": "string", "default": "720p" }
+    }
+  },
+  {
+    "id": "seedance-pro-i2v",
+    "name": "Seedance Pro",
+    "inputs": {
+      "prompt": { "type": "string", "title": "Prompt", "name": "prompt", "description": "Describe the motion and animation for the image." },
+      "image_url": { "type": "string", "title": "Image URL", "name": "image_url" },
+      "aspect_ratio": { "enum": ["16:9", "9:16", "1:1", "4:3", "3:4"], "title": "Aspect Ratio", "name": "aspect_ratio", "type": "string", "default": "9:16" },
+      "duration": { "title": "Duration", "name": "duration", "type": "int", "default": 5 },
+      "resolution": { "enum": ["480p", "720p", "1080p"], "title": "Resolution", "name": "resolution", "type": "string", "default": "720p" }
+    }
+  },
+  {
+    "id": "seedance-v1.5-pro-i2v",
+    "name": "Seedance v1.5 Pro",
+    "inputs": {
+      "prompt": { "type": "string", "title": "Prompt", "name": "prompt", "description": "Describe the motion and animation for the image." },
+      "image_url": { "type": "string", "title": "Image URL", "name": "image_url" },
+      "aspect_ratio": { "enum": ["16:9", "9:16", "1:1", "4:3", "3:4"], "title": "Aspect Ratio", "name": "aspect_ratio", "type": "string", "default": "9:16" },
+      "duration": { "title": "Duration", "name": "duration", "type": "int", "default": 5 },
+      "resolution": { "enum": ["720p", "1080p"], "title": "Resolution", "name": "resolution", "type": "string", "default": "1080p" }
+    }
+  },
+  {
+    "id": "kling-v2.1-master-i2v",
+    "name": "Kling v2.1 Master",
+    "inputs": {
+      "prompt": { "type": "string", "title": "Prompt", "name": "prompt", "description": "Describe the motion and animation for the image." },
+      "image_url": { "type": "string", "title": "Image URL", "name": "image_url" },
+      "aspect_ratio": { "enum": ["16:9", "9:16", "1:1"], "title": "Aspect Ratio", "name": "aspect_ratio", "type": "string", "default": "9:16" },
+      "duration": { "enum": [5, 10], "title": "Duration", "name": "duration", "type": "int", "default": 5 }
+    }
+  },
+  {
+    "id": "kling-v2.6-pro-i2v",
+    "name": "Kling v2.6 Pro",
+    "inputs": {
+      "prompt": { "type": "string", "title": "Prompt", "name": "prompt", "description": "Describe the motion and animation for the image." },
+      "image_url": { "type": "string", "title": "Image URL", "name": "image_url" },
+      "aspect_ratio": { "enum": ["16:9", "9:16", "1:1"], "title": "Aspect Ratio", "name": "aspect_ratio", "type": "string", "default": "9:16" },
+      "duration": { "enum": [5, 10], "title": "Duration", "name": "duration", "type": "int", "default": 5 }
+    }
+  },
+  {
+    "id": "kling-v3.0-pro-image-to-video",
+    "name": "Kling v3.0 Pro",
+    "inputs": {
+      "prompt": { "type": "string", "title": "Prompt", "name": "prompt", "description": "Describe the motion and animation for the image." },
+      "image_url": { "type": "string", "title": "Image URL", "name": "image_url" },
+      "aspect_ratio": { "enum": ["16:9", "9:16", "1:1"], "title": "Aspect Ratio", "name": "aspect_ratio", "type": "string", "default": "9:16" },
+      "duration": { "enum": [5, 10], "title": "Duration", "name": "duration", "type": "int", "default": 5 }
+    }
+  },
+  {
+    "id": "wan-2.1-i2v",
+    "name": "Wan 2.1",
+    "inputs": {
+      "prompt": { "type": "string", "title": "Prompt", "name": "prompt", "description": "Describe the motion and animation for the image." },
+      "image_url": { "type": "string", "title": "Image URL", "name": "image_url" },
+      "aspect_ratio": { "enum": ["16:9", "9:16", "1:1"], "title": "Aspect Ratio", "name": "aspect_ratio", "type": "string", "default": "9:16" },
+      "duration": { "title": "Duration", "name": "duration", "type": "int", "default": 5 },
+      "resolution": { "enum": ["480p", "720p", "1080p"], "title": "Resolution", "name": "resolution", "type": "string", "default": "720p" }
+    }
+  },
+  {
+    "id": "wan-2.5-i2v",
+    "name": "Wan 2.5",
+    "inputs": {
+      "prompt": { "type": "string", "title": "Prompt", "name": "prompt", "description": "Describe the motion and animation for the image." },
+      "image_url": { "type": "string", "title": "Image URL", "name": "image_url" },
+      "aspect_ratio": { "enum": ["16:9", "9:16", "1:1"], "title": "Aspect Ratio", "name": "aspect_ratio", "type": "string", "default": "9:16" },
+      "duration": { "title": "Duration", "name": "duration", "type": "int", "default": 5 },
+      "resolution": { "enum": ["480p", "720p", "1080p"], "title": "Resolution", "name": "resolution", "type": "string", "default": "720p" }
+    }
+  }
+];
+
+export const getI2VModelById = (id) => i2vModels.find(m => m.id === id);
+
+export const getAspectRatiosForI2VModel = (modelId) => {
+  const model = getI2VModelById(modelId);
+  if (!model) return ['9:16'];
+  const arInput = model.inputs?.aspect_ratio;
+  if (arInput && arInput.enum) return arInput.enum;
+  return ['16:9', '9:16', '1:1'];
+};
+
+export const getDurationsForI2VModel = (modelId) => {
+  const model = getI2VModelById(modelId);
+  if (!model) return [5];
+  const durInput = model.inputs?.duration;
+  if (durInput && durInput.enum) return durInput.enum;
+  if (durInput) return [durInput.default || 5];
+  return [5];
+};
+
+export const getResolutionsForI2VModel = (modelId) => {
+  const model = getI2VModelById(modelId);
+  if (!model) return [];
+  const resInput = model.inputs?.resolution;
+  if (resInput && resInput.enum) return resInput.enum;
+  return [];
+};
