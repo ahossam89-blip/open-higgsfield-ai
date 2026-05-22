@@ -1,0 +1,27 @@
+[
+  {
+    "scene": "out-of-office",
+    "tagline": "Out of office.",
+    "error": "Submit failed 403: Host not in allowlist"
+  },
+  {
+    "scene": "booked-the-summer",
+    "tagline": "Booked the summer.",
+    "error": "Submit failed 403: Host not in allowlist"
+  },
+  {
+    "scene": "the-walk",
+    "tagline": "",
+    "error": "Submit failed 403: Host not in allowlist"
+  },
+  {
+    "scene": "made-for-slow-summers",
+    "tagline": "Made for slow summers.",
+    "error": "Submit failed 403: Host not in allowlist"
+  },
+  {
+    "scene": "wear-the-escape",
+    "tagline": "Ein – Wear the escape.",
+    "error": "Submit failed 403: Host not in allowlist"
+  }
+]
