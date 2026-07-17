@@ -1,0 +1,120 @@
+name: Weekly Book Factory
+
+on:
+  schedule:
+    # Every Monday at 06:00 UTC.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      book_id:
+        description: "Process this specific book id instead of the next queued one"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: book-factory
+  cancel-in-progress: false
+
+jobs:
+  produce-book:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install WeasyPrint system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 \
+            libffi-dev shared-mime-info fonts-noto-core
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Cache Arabic fonts
+        uses: actions/cache@v4
+        with:
+          path: assets/fonts
+          key: fonts-v1-${{ hashFiles('scripts/fetch_fonts.py') }}
+
+      - name: Fetch Arabic fonts
+        run: python -m scripts.fetch_fonts
+
+      - name: Show next queued book (dry run)
+        run: python -m scripts.run_pipeline --dry-run ${{ github.event.inputs.book_id && format('--id {0}', github.event.inputs.book_id) || '' }}
+
+      - name: Run book factory pipeline
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python -m scripts.run_pipeline ${{ github.event.inputs.book_id && format('--id {0}', github.event.inputs.book_id) || '' }}
+
+      - name: Read run manifest
+        id: manifest
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          m = json.load(open("output/_last_run.json", encoding="utf-8"))
+          print(f"book_id={m['book_id']}")
+          print(f"interior_pdf={m['interior_pdf']}")
+          print(f"cover_pdf={m['cover_pdf']}")
+          print(f"metadata_path={m['metadata_path']}")
+          print(f"page_count={m['page_count']}")
+          PY
+
+      - name: Commit queue status update
+        run: |
+          git config user.name "book-factory-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add books.yaml
+          git add -f "output/${{ steps.manifest.outputs.book_id }}/metadata.json" \
+                     "output/${{ steps.manifest.outputs.book_id }}/manifest.json"
+          git diff --cached --quiet || git commit -m "book-factory: publish ${{ steps.manifest.outputs.book_id }}"
+          git push
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: book-${{ steps.manifest.outputs.book_id }}-${{ github.run_number }}
+          name: "${{ steps.manifest.outputs.book_id }} (${{ steps.manifest.outputs.page_count }} pages)"
+          body: |
+            Automated weekly build from the Arabic KDP Book Factory.
+
+            - Book: `${{ steps.manifest.outputs.book_id }}`
+            - Pages: ${{ steps.manifest.outputs.page_count }}
+            - Metadata: `${{ steps.manifest.outputs.metadata_path }}`
+
+            Upload `*-interior.pdf` as the manuscript and `*-cover.pdf` as the
+            cover on KDP. See `upload_checklist.csv` for title/keywords/categories.
+          draft: true
+          files: |
+            ${{ steps.manifest.outputs.interior_pdf }}
+            ${{ steps.manifest.outputs.cover_pdf }}
+            ${{ steps.manifest.outputs.metadata_path }}
+            output/upload_checklist.csv
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: book-factory-failure-logs
+          path: |
+            output/
+            books.yaml
+          retention-days: 14

@@ -12,6 +12,15 @@ dist
 dist-ssr
 *.local
 
+# Arabic KDP Book Factory
+__pycache__/
+*.pyc
+.venv/
+venv/
+assets/fonts/*.ttf
+assets/fonts/*.otf
+output/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

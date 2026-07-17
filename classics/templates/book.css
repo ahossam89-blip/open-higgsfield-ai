@@ -1,0 +1,158 @@
+/* Static typography rules for classics interior typesetting.
+   Page geometry (size, margins) is injected per-book by typeset.py into an
+   inline <style> block — this file only holds rules that don't vary. */
+
+@font-face {
+    font-family: "Amiri";
+    src: url("../../assets/fonts/Amiri-Regular.ttf");
+    font-weight: normal;
+    font-style: normal;
+}
+@font-face {
+    font-family: "Amiri";
+    src: url("../../assets/fonts/Amiri-Bold.ttf");
+    font-weight: bold;
+    font-style: normal;
+}
+@font-face {
+    font-family: "Cairo";
+    src: url("../../assets/fonts/Cairo-Regular.ttf");
+    font-weight: normal;
+}
+@font-face {
+    font-family: "Cairo";
+    src: url("../../assets/fonts/Cairo-Bold.ttf");
+    font-weight: bold;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    direction: rtl;
+    unicode-bidi: embed;
+}
+
+body {
+    font-family: "Amiri", "Noto Naskh Arabic", serif;
+    font-size: 12.5pt;
+    line-height: 1.9;
+    text-align: justify;
+    color: #1a1a1a;
+    hyphens: none;
+}
+
+.title-page {
+    page: title;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+}
+.title-page .kicker {
+    font-family: "Cairo", sans-serif;
+    font-size: 12pt;
+    color: #555;
+    margin-bottom: 1.5em;
+}
+.title-page h1 {
+    font-family: "Cairo", sans-serif;
+    font-size: 30pt;
+    margin: 0 0 0.3em 0;
+}
+.title-page .author {
+    font-size: 16pt;
+    margin-top: 0.5em;
+}
+
+.colophon {
+    page: colophon;
+    font-size: 9.5pt;
+    color: #444;
+    line-height: 1.6;
+}
+.colophon p { margin: 0.4em 0; }
+
+.toc { page: toc; }
+.toc h2 { font-family: "Cairo", sans-serif; }
+.toc ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.toc li {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px dotted #ccc;
+    padding: 0.35em 0;
+    font-size: 11pt;
+}
+
+h1, h2, h3 {
+    font-family: "Cairo", sans-serif;
+    font-weight: bold;
+    page-break-after: avoid;
+}
+
+.section-title {
+    font-size: 20pt;
+    text-align: center;
+    margin: 0 0 1.2em 0;
+}
+
+.chapter {
+    page-break-before: always;
+}
+.chapter h2 {
+    font-size: 17pt;
+    text-align: center;
+    margin: 0 0 1em 0;
+}
+.chapter p {
+    text-indent: 1.2em;
+    margin: 0 0 0.6em 0;
+}
+
+.introduction p { text-indent: 1.2em; margin: 0 0 0.6em 0; }
+
+.annotations {
+    margin-top: 1.5em;
+    padding-top: 0.8em;
+    border-top: 1px solid #ccc;
+    font-size: 9.5pt;
+    color: #333;
+    line-height: 1.6;
+}
+.annotations h4 {
+    font-family: "Cairo", sans-serif;
+    font-size: 10pt;
+    margin: 0 0 0.5em 0;
+}
+.annotations ol {
+    margin: 0;
+    padding-inline-start: 1.4em;
+}
+.annotations li { margin-bottom: 0.35em; }
+
+.glossary { page: glossary; }
+.glossary dl {
+    columns: 2;
+    column-gap: 2em;
+}
+.glossary dt {
+    font-weight: bold;
+    font-family: "Cairo", sans-serif;
+    font-size: 11pt;
+    break-inside: avoid;
+    margin-top: 0.6em;
+}
+.glossary dd {
+    margin: 0.15em 0 0.15em 0;
+    font-size: 10.5pt;
+    color: #333;
+}
+
+.page-number:before {
+    content: counter(page);
+}
