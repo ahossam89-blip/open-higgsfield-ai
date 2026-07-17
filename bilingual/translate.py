@@ -153,7 +153,13 @@ def _strip_code_fence(raw: str) -> str:
     return text
 
 
-def translate_book(book: dict, out_dir: Path) -> Path:
+def translate_book(book: dict, out_dir: Path, force: bool = False) -> Path:
+    """Idempotent: skips the (expensive, Claude-API-calling) translation
+    entirely if out_dir/bilingual_content.json already exists."""
+    dest = out_dir / "bilingual_content.json"
+    if dest.exists() and not force:
+        return dest
+
     chapters = json.loads((out_dir / "chapters.json").read_text(encoding="utf-8"))
     generated_path = out_dir / "generated_content.json"
     generated = json.loads(generated_path.read_text(encoding="utf-8")) if generated_path.exists() else {}
@@ -176,7 +182,6 @@ def translate_book(book: dict, out_dir: Path) -> Path:
         "glossary": generated.get("glossary", []),
         "introduction_ar": generated.get("introduction", ""),
     }
-    dest = out_dir / "bilingual_content.json"
     dest.write_text(json.dumps(content, ensure_ascii=False, indent=2), encoding="utf-8")
     return dest
 

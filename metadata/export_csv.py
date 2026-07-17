@@ -23,6 +23,7 @@ CSV_COLUMNS = [
     "book_id",
     "type",
     "series",
+    "series_line",
     "status",
     "formats",
     "title",
@@ -41,6 +42,7 @@ CSV_COLUMNS = [
     "keyword_6",
     "keyword_7",
     "description",
+    "ai_content_disclosure",
     "interior_pdf",
     "cover_pdf_paperback",
     "cover_pdf_hardcover",
@@ -48,6 +50,29 @@ CSV_COLUMNS = [
     "package_zip",
     "notes",
 ]
+
+# KDP requires disclosing AI-generated content in the title's "AI Content"
+# section of the Publishing Details form at upload time — this is a
+# per-book reminder, not something the pipeline can tick on your behalf.
+_AI_DISCLOSURE = {
+    "classic": (
+        "AI-generated book content: original ~1,500-word introduction, chapter "
+        "annotations, and glossary (Claude API). The classical Arabic source text "
+        "itself is NOT AI-generated. Disclose under KDP Publishing Details -> AI Content."
+    ),
+    "bilingual": (
+        "AI-generated book content: English translation, translator's preface, "
+        "introduction, chapter annotations, and glossary (Claude API). The classical "
+        "Arabic source text itself is NOT AI-generated. Disclose under KDP Publishing "
+        "Details -> AI Content."
+    ),
+    "lowcontent": (
+        "No AI-generated book content — interior is programmatically generated "
+        "(no Claude-authored text). No AI Content disclosure required for the interior. "
+        "(Listing metadata — title/subtitle/keywords/description — was AI-assisted; "
+        "KDP disclosure applies to book content, not marketing metadata.)"
+    ),
+}
 
 
 def _book_row(book: dict) -> dict:
@@ -65,6 +90,7 @@ def _book_row(book: dict) -> dict:
         "book_id": book["id"],
         "type": book["type"],
         "series": book.get("series", ""),
+        "series_line": metadata.get("series_line", ""),
         "status": book["status"],
         "formats": " | ".join(book.get("formats", [])),
         "title": metadata.get("title", book.get("title_ar", "")),
@@ -76,6 +102,7 @@ def _book_row(book: dict) -> dict:
         "page_count": manifest.get("page_count", ""),
         "categories": " | ".join(metadata.get("categories", [])),
         "description": metadata.get("description", ""),
+        "ai_content_disclosure": _AI_DISCLOSURE.get(book["type"], ""),
         "interior_pdf": manifest.get("interior_pdf", ""),
         "cover_pdf_paperback": formats.get("paperback", {}).get("cover_pdf", ""),
         "cover_pdf_hardcover": formats.get("hardcover", {}).get("cover_pdf", ""),

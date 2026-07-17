@@ -39,9 +39,19 @@ def extract_text(raw: bytes, fmt: str, encoding: str = "utf-8") -> str:
     raise IngestError(f"Unsupported source format '{fmt}'")
 
 
-def ingest_book(book: dict, out_dir: Path) -> Path:
+def ingest_book(book: dict, out_dir: Path, force: bool = False) -> Path:
     """Fetch a book's source per its books.yaml `source` block and save the
-    raw extracted text to out_dir/raw.txt. Returns the path written."""
+    raw extracted text to out_dir/raw.txt. Returns the path written.
+
+    Idempotent: if out_dir/raw.txt already exists, skips the network fetch
+    and returns the existing file (pass force=True to re-fetch) — this is
+    what makes a resumed/retried pipeline run cheap and resilient to a
+    transient network failure on a later stage.
+    """
+    dest = out_dir / "raw.txt"
+    if dest.exists() and not force:
+        return dest
+
     source = book.get("source")
     if not source or "url" not in source:
         raise IngestError(f"Book '{book['id']}' has no source.url configured")
@@ -50,7 +60,6 @@ def ingest_book(book: dict, out_dir: Path) -> Path:
     raw = fetch_raw(source["url"])
     text = extract_text(raw, source.get("format", "text"), source.get("encoding", "utf-8"))
 
-    dest = out_dir / "raw.txt"
     dest.write_text(text, encoding="utf-8")
     return dest
 

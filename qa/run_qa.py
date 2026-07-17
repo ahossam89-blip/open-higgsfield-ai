@@ -20,6 +20,7 @@ from pypdf import PdfReader
 from common import kdp_specs
 from common.arabic_text import word_count
 from common.queue import find_book
+from qa.vision_qa import run_vision_qa
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_ROOT = REPO_ROOT / "output"
@@ -135,7 +136,7 @@ def _check_interior_content(report: QAReport, book: dict, out_dir: Path) -> None
         )
 
 
-def run_qa(book: dict) -> QAReport:
+def run_qa(book: dict, run_vision: bool = True, vision_seed: int | None = None) -> QAReport:
     report = QAReport()
     out_dir = OUTPUT_ROOT / book["id"]
     manifest_path = out_dir / "manifest.json"
@@ -205,23 +206,72 @@ def run_qa(book: dict) -> QAReport:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
         keywords = metadata.get("keywords", [])
         report.check("exactly 7 keywords", len(keywords) == 7, f"{len(keywords)} keywords")
+        categories = metadata.get("categories", [])
+        report.check("exactly 2 categories", len(categories) == 2, f"{len(categories)} categories")
         report.check("description present", bool(metadata.get("description", "").strip()), "")
     else:
         report.check("metadata present", False, f"missing file: {metadata_path}")
 
+    # Vision QA — rasterize a sample of interior pages + the cover and have
+    # Claude inspect them. Blocking: any error here counts as a QA failure
+    # (see qa/vision_qa.py's fail-closed design).
+    if run_vision and pages:
+        interior_path = REPO_ROOT / manifest["interior_pdf"]
+        cover_path = None
+        for fmt in ("paperback", "hardcover"):
+            fmt_info = manifest.get("formats", {}).get(fmt)
+            if fmt_info:
+                cover_path = REPO_ROOT / fmt_info["cover_pdf"]
+                break
+        result = run_vision_qa(interior_path, cover_path, out_dir, seed=vision_seed)
+        for img in result.per_image:
+            report.check(
+                f"vision: {img.get('label', '?')}", img.get("passed", False),
+                "; ".join(img.get("issues", [])),
+            )
+        report.check(
+            "vision QA overall", result.passed,
+            result.summary or result.error or "vision QA did not run",
+        )
+
+    if not report.passed:
+        quarantine(book, report)
+
     return report
+
+
+def quarantine(book: dict, report: QAReport) -> Path:
+    """Write a human-readable failure report to output/<id>/qa_report/ —
+    the "quarantine" for a book that failed QA. Never packaged from here."""
+    out_dir = OUTPUT_ROOT / book["id"]
+    qa_dir = out_dir / "qa_report"
+    qa_dir.mkdir(parents=True, exist_ok=True)
+
+    lines = [
+        f"# QA quarantine report — {book['id']}",
+        "",
+        f"Status: FAILED ({sum(1 for c in report.checks if not c['passed'])} of {len(report.checks)} checks failed)",
+        "",
+    ]
+    for c in report.checks:
+        mark = "FAIL" if not c["passed"] else "pass"
+        lines.append(f"- [{mark}] {c['name']}" + (f" — {c['detail']}" if c["detail"] else ""))
+    report_path = qa_dir / "qa_failure_report.md"
+    report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return report_path
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the QA gate for a book")
     parser.add_argument("--id", required=True)
+    parser.add_argument("--no-vision", action="store_true", help="Skip the Claude vision QA pass (for local iteration)")
     args = parser.parse_args()
 
     book = find_book(args.id)
     if book is None:
         raise SystemExit(f"Book '{args.id}' not found in books.yaml")
 
-    report = run_qa(book)
+    report = run_qa(book, run_vision=not args.no_vision)
     for c in report.checks:
         mark = "PASS" if c["passed"] else "FAIL"
         print(f"[{mark}] {c['name']}" + (f" — {c['detail']}" if c["detail"] else ""))

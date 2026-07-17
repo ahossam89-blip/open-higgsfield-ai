@@ -15,6 +15,7 @@ or drops to "failed" (with `notes` explaining why) at any stage:
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -121,6 +122,7 @@ def update_status(
     for entry in entries:
         if entry["id"] == book_id:
             entry["status"] = status
+            entry["updated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
             if notes is not None:
                 entry["notes"] = notes
             found = True

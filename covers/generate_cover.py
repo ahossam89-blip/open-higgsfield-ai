@@ -14,6 +14,8 @@ LTR book.
 from __future__ import annotations
 
 import argparse
+import colorsys
+import hashlib
 from pathlib import Path
 from typing import Union
 
@@ -28,6 +30,34 @@ STYLE_PALETTES = {
     "modern": {"bg": "#f4f1ea", "accent": "#173a5e", "text": "#173a5e"},
     "warm": {"bg": "#6b2b1a", "accent": "#f2c14e", "text": "#fbf3e3"},
 }
+
+SERIES_BAND_HEIGHT_IN = 0.38
+
+
+def series_accent_color(series: str) -> str:
+    """A deterministic accent color derived from the series name, so every
+    book in a series carries the same branding band color regardless of
+    which `cover_style` palette each individual title picks — the shared
+    visual identity a series needs without hand-maintaining a lookup table."""
+    digest = hashlib.sha256(series.encode("utf-8")).hexdigest()
+    hue = (int(digest[:8], 16) % 360) / 360.0
+    r, g, b = colorsys.hls_to_rgb(hue, 0.42, 0.55)
+    return "#{:02x}{:02x}{:02x}".format(int(r * 255), int(g * 255), int(b * 255))
+
+
+def _series_band(page: SvgPage, x0: float, x1: float, top: float, series: str) -> float:
+    """Draws the series branding band across [x0, x1] starting at `top`;
+    returns the y-coordinate just below the band (for stacking content)."""
+    if not series:
+        return top
+    color = series_accent_color(series)
+    band_h = SERIES_BAND_HEIGHT_IN * PT_PER_IN
+    page.rect(x0, top, x1 - x0, band_h, fill=color)
+    page.text(
+        (x0 + x1) / 2, top + band_h * 0.68, series, size=band_h * 0.42,
+        weight="bold", fill="#ffffff",
+    )
+    return top + band_h
 
 
 def _outer_margin_in(layout: CoverLayoutT) -> float:
@@ -62,6 +92,7 @@ def generate_cover_pdf(
     blurb_ar: str,
     style: str,
     out_path: Path,
+    series: str = "",
 ) -> Path:
     palette = STYLE_PALETTES.get(style, STYLE_PALETTES["classic"])
     w_pt = layout.sheet_width_in * PT_PER_IN
@@ -81,13 +112,14 @@ def generate_cover_pdf(
     fl, ft, fr, fb = _safe_rect(layout.front_x0_in, layout.front_x1_in, layout, "front")
     front_cx = (fl + fr) / 2
     p.rect(fl, ft, fr - fl, fb - ft, fill="none", stroke=palette["accent"], stroke_width=1.5, opacity=0.5)
-    p.text(front_cx, ft + (fb - ft) * 0.38, title_ar, size=34, weight="bold",
+    content_top = _series_band(p, fl, fr, ft, series)
+    p.text(front_cx, content_top + (fb - content_top) * 0.38, title_ar, size=34, weight="bold",
            font=ARABIC_HEADING_FONT_STACK, fill=palette["text"])
     if subtitle_ar:
-        p.text(front_cx, ft + (fb - ft) * 0.46, subtitle_ar, size=15,
+        p.text(front_cx, content_top + (fb - content_top) * 0.46, subtitle_ar, size=15,
                font=ARABIC_HEADING_FONT_STACK, fill=palette["accent"])
     if author_ar:
-        p.text(front_cx, fb - (fb - ft) * 0.08, author_ar, size=17, weight="bold",
+        p.text(front_cx, fb - (fb - content_top) * 0.08, author_ar, size=17, weight="bold",
                font=ARABIC_HEADING_FONT_STACK, fill=palette["text"])
 
     # ---------------- Spine (center panel) ----------------
@@ -104,10 +136,10 @@ def generate_cover_pdf(
 
     # ---------------- Back cover (left panel) ----------------
     bl, bt, br, bb = _safe_rect(layout.back_x0_in, layout.back_x1_in, layout, "back")
-    back_cx = (bl + br) / 2
     p.rect(bl, bt, br - bl, bb - bt, fill="none", stroke=palette["accent"], stroke_width=1.5, opacity=0.5)
+    back_content_top = _series_band(p, bl, br, bt, series)
     if blurb_ar:
-        _wrapped_text_block(p, blurb_ar, bl + 14, bt + 30, br - bl - 28, size=11.5,
+        _wrapped_text_block(p, blurb_ar, bl + 14, back_content_top + 30, br - bl - 28, size=11.5,
                              fill=palette["text"], line_height=17)
 
     # Barcode placeholder — KDP overlays its own ISBN/price barcode here.
@@ -162,12 +194,14 @@ def main() -> None:
     parser.add_argument("--subtitle", default="")
     parser.add_argument("--blurb", default="")
     parser.add_argument("--style", default="classic", choices=list(STYLE_PALETTES))
+    parser.add_argument("--series", default="")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
 
     layout = compute_layout_for_binding(args.binding, args.trim_size, args.page_count, args.paper_type)
     out = generate_cover_pdf(
-        layout, args.title, args.author, args.subtitle, args.blurb, args.style, Path(args.out)
+        layout, args.title, args.author, args.subtitle, args.blurb, args.style, Path(args.out),
+        series=args.series,
     )
     print(f"Wrote {out} (sheet {layout.sheet_width_in}in x {layout.sheet_height_in}in, spine {layout.spine_width_in}in)")
 

@@ -1,4 +1,4 @@
-name: Weekly Book Factory
+name: Arabic KDP Publishing Factory
 
 on:
   schedule:
@@ -61,32 +61,57 @@ jobs:
         run: python -m scripts.run_pipeline --dry-run ${{ github.event.inputs.book_id && format('--id {0}', github.event.inputs.book_id) || '' }}
 
       # Runs the full pipeline: generate (interior + per-format covers/ebook
-      # + metadata) -> QA gate -> package. On success the book's status ends
-      # at "packaged" in books.yaml; on QA/build failure it ends at "failed"
-      # (with `notes` explaining why) and this step exits non-zero.
+      # + metadata) -> QA gate (structural checks + Claude vision QA) ->
+      # package. Idempotent/resumable at every stage (see common/queue.py
+      # and each stage module's `force` param) — a retry of a "failed" book
+      # only redoes what's actually missing. On success the book's status
+      # ends at "packaged"; on a build or QA failure it ends at "failed"
+      # (quarantined — see output/<id>/qa_report/), `notes` explains why,
+      # and this step exits non-zero (the job is correctly red — a human
+      # needs to look at the quarantine report).
       - name: Run book factory pipeline
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AMAZON_MARKETPLACE_ID: ${{ secrets.AMAZON_MARKETPLACE_ID }}
         run: python -m scripts.run_pipeline ${{ github.event.inputs.book_id && format('--id {0}', github.event.inputs.book_id) || '' }}
 
-      - name: Read run manifest
+      # Runs whether the pipeline above succeeded or failed — this is what
+      # actually persists the QA quarantine report (and the "failed" status)
+      # back to the repo instead of losing it when the runner is torn down.
+      - name: Read run breadcrumb
         id: manifest
+        if: always()
         run: |
           python - <<'PY' >> "$GITHUB_OUTPUT"
           import json
           m = json.load(open("output/_last_run.json", encoding="utf-8"))
           print(f"book_id={m['book_id']}")
+          print(f"outcome={m.get('outcome', 'unknown')}")
           print(f"series={m.get('series') or ''}")
-          print(f"interior_pdf={m['interior_pdf']}")
-          print(f"metadata_path={m['metadata_path']}")
-          print(f"package_zip={m['package_zip']}")
-          print(f"page_count={m['page_count']}")
+          print(f"metadata_path={m.get('metadata_path', '')}")
+          print(f"package_zip={m.get('package_zip', '')}")
+          print(f"page_count={m.get('page_count', '')}")
           print("formats=" + ",".join(m.get("formats", {}).keys()))
           PY
+
+      - name: Commit queue status update
+        if: always()
+        run: |
+          git config user.name "book-factory-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add books.yaml
+          BOOK_DIR="output/${{ steps.manifest.outputs.book_id }}"
+          for f in "$BOOK_DIR/metadata.json" "$BOOK_DIR/manifest.json" \
+                   "$BOOK_DIR/package/package_manifest.json" "$BOOK_DIR/qa_report"; do
+            [ -e "$f" ] && git add -f "$f"
+          done
+          git diff --cached --quiet || git commit -m "book-factory: ${{ steps.manifest.outputs.outcome }} ${{ steps.manifest.outputs.book_id }}"
+          git push
 
       # Only reached if the pipeline (and thus QA) succeeded above, so the
       # release always contains a QA-passed, packaged book.
       - name: Create release
+        if: steps.manifest.outputs.outcome == 'success'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: book-${{ steps.manifest.outputs.book_id }}-${{ github.run_number }}
@@ -111,26 +136,19 @@ jobs:
 
       # Only flip to "published" once the release above actually exists.
       - name: Mark published
+        if: steps.manifest.outputs.outcome == 'success'
         run: |
           python -c "from common.queue import update_status; update_status('${{ steps.manifest.outputs.book_id }}', 'published')"
-
-      - name: Commit queue status update
-        run: |
-          git config user.name "book-factory-bot"
-          git config user.email "actions@users.noreply.github.com"
           git add books.yaml
-          git add -f "output/${{ steps.manifest.outputs.book_id }}/metadata.json" \
-                     "output/${{ steps.manifest.outputs.book_id }}/manifest.json" \
-                     "output/${{ steps.manifest.outputs.book_id }}/package/package_manifest.json"
           git diff --cached --quiet || git commit -m "book-factory: publish ${{ steps.manifest.outputs.book_id }}"
           git push
 
-      - name: Upload failure artifacts
-        if: failure()
+      - name: Upload run artifacts (including QA quarantine report on failure)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: book-factory-failure-logs
+          name: book-factory-run-${{ github.run_number }}
           path: |
             output/
             books.yaml
-          retention-days: 14
+          retention-days: 30

@@ -14,7 +14,14 @@ from pathlib import Path
 from common.arabic_text import clean_arabic_text, split_into_chapters
 
 
-def clean_book(book: dict, out_dir: Path) -> Path:
+def clean_book(book: dict, out_dir: Path, force: bool = False) -> Path:
+    """Idempotent: skips re-cleaning if out_dir/chapters.json already
+    exists (pass force=True to redo it — e.g. after changing `normalize`
+    or `chapters` in books.yaml)."""
+    dest = out_dir / "chapters.json"
+    if dest.exists() and not force:
+        return dest
+
     raw_path = out_dir / "raw.txt"
     if not raw_path.exists():
         raise FileNotFoundError(f"{raw_path} not found — run ingest first")
@@ -42,7 +49,6 @@ def clean_book(book: dict, out_dir: Path) -> Path:
         if not chapters:
             chapters = [{"heading": "النص الكامل", "body": cleaned}]
 
-    dest = out_dir / "chapters.json"
     dest.write_text(json.dumps(chapters, ensure_ascii=False, indent=2), encoding="utf-8")
     return dest
 

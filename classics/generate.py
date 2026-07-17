@@ -157,7 +157,14 @@ def _parse_json_array(raw: str) -> list[dict]:
     return data
 
 
-def generate_book_content(book: dict, out_dir: Path) -> Path:
+def generate_book_content(book: dict, out_dir: Path, force: bool = False) -> Path:
+    """Idempotent: skips the (expensive, Claude-API-calling) generation
+    entirely if out_dir/generated_content.json already exists, so a
+    resumed/retried pipeline run doesn't re-pay for a completed stage."""
+    dest = out_dir / "generated_content.json"
+    if dest.exists() and not force:
+        return dest
+
     chapters_path = out_dir / "chapters.json"
     chapters = json.loads(chapters_path.read_text(encoding="utf-8"))
 
@@ -180,7 +187,6 @@ def generate_book_content(book: dict, out_dir: Path) -> Path:
         "chapters": annotated_chapters,
         "glossary": glossary,
     }
-    dest = out_dir / "generated_content.json"
     dest.write_text(json.dumps(content, ensure_ascii=False, indent=2), encoding="utf-8")
     return dest
 

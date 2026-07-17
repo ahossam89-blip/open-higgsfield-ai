@@ -1,7 +1,12 @@
-"""Generate KDP listing metadata (title, subtitle, 7 keywords, categories,
-description) for a book via the Claude API.
+"""Generate KDP listing metadata (title, subtitle, 7 keywords, 2 categories,
+description, series line) for a book via the Claude API, grounded in real
+search-demand signal from keywords/scrape_amazon.py where available.
 
-Requires ANTHROPIC_API_KEY in the environment.
+Requires ANTHROPIC_API_KEY in the environment. Set AMAZON_MARKETPLACE_ID to
+enable autocomplete-suggestion scraping (see keywords/scrape_amazon.py);
+without it, only competitor-listing-title scraping is attempted, and if
+that also fails (e.g. no network), metadata generation still proceeds on
+Claude's own knowledge alone.
 """
 
 from __future__ import annotations
@@ -14,9 +19,13 @@ from pathlib import Path
 
 import anthropic
 
+from keywords.scrape_amazon import get_keyword_candidates
+
 DEFAULT_MODEL = os.environ.get("CLAUDE_MODEL", "claude-opus-4-8")
 MAX_RETRIES = 3
 REQUIRED_FIELDS = ("title", "subtitle", "keywords", "categories", "description")
+NUM_KEYWORDS = 7
+NUM_CATEGORIES = 2
 
 
 def _client() -> anthropic.Anthropic:
@@ -99,41 +108,72 @@ def _content_summary(book: dict, out_dir: Path) -> str:
     return f"نوع المحتوى: {book.get('generator')}\nمواصفات: {json.dumps(spec, ensure_ascii=False)}"
 
 
-def generate_metadata(book: dict, out_dir: Path) -> dict:
+def _research_context(book: dict) -> str:
+    """Best-effort Amazon keyword-research signal (see
+    keywords/scrape_amazon.py) — never raises; returns an empty-results
+    note if scraping is unavailable (no network, robots.txt disallow, etc.),
+    in which case Claude falls back to its own knowledge."""
+    candidates = get_keyword_candidates(
+        book["title_ar"], mid=os.environ.get("AMAZON_MARKETPLACE_ID") or None
+    )
+    if not candidates["autocomplete"] and not candidates["competitor_titles"]:
+        return "لا تتوفر بيانات بحث حية من أمازون لهذه الجلسة."
+    lines = []
+    if candidates["autocomplete"]:
+        lines.append("اقتراحات البحث التلقائي على أمازون: " + "، ".join(candidates["autocomplete"]))
+    if candidates["competitor_titles"]:
+        lines.append("عناوين كتب منافسة في نتائج البحث: " + "، ".join(candidates["competitor_titles"]))
+    return "\n".join(lines)
+
+
+def generate_metadata(book: dict, out_dir: Path, force: bool = False) -> dict:
+    """Idempotent: skips the Claude API call and returns the existing
+    output/<id>/metadata.json if it's already there."""
+    dest = out_dir / "metadata.json"
+    if dest.exists() and not force:
+        return json.loads(dest.read_text(encoding="utf-8"))
+
     client = _client()
     summary = _content_summary(book, out_dir)
+    research = _research_context(book)
 
     system = (
         "أنت خبير في تحسين قوائم النشر على منصة Amazon KDP للكتب العربية. "
         "تكتب عناوين وأوصافًا وكلمات مفتاحية تزيد من ظهور الكتاب في نتائج "
-        "البحث دون مبالغة أو تضليل. أعد ردك بصيغة JSON فقط، بدون أي نص خارج JSON."
+        "البحث دون مبالغة أو تضليل، مستعينًا ببيانات بحث حقيقية عند توفرها. "
+        "أعد ردك بصيغة JSON فقط، بدون أي نص خارج JSON."
     )
     user = (
         f"كتاب بعنوان مبدئي \"{book['title_ar']}\""
         + (f" للمؤلف {book['author_ar']}" if book.get("author_ar") else "")
-        + f"\n\nملخص المحتوى:\n{summary}\n\n"
+        + (f"\nالسلسلة: {book['series']}" if book.get("series") else "")
+        + f"\n\nملخص المحتوى:\n{summary}\n\nبيانات بحث السوق:\n{research}\n\n"
         "أنشئ بيانات النشر التالية بصيغة JSON فقط:\n"
         "{\n"
         '  "title": "عنوان جذاب ودقيق (بدون معلومات مضللة)",\n'
         '  "subtitle": "عنوان فرعي يوضح القيمة المضافة للطبعة",\n'
-        '  "keywords": ["سبع كلمات أو عبارات مفتاحية بحثية مختلفة عن العنوان"],\n'
-        '  "categories": ["فئتان إلى ثلاث فئات KDP الأنسب بالإنجليزية بصيغة '
+        f'  "keywords": ["{NUM_KEYWORDS} كلمات أو عبارات مفتاحية بحثية مختلفة عن العنوان، '
+        'مستفادة من بيانات البحث أعلاه عند توفرها"],\n'
+        f'  "categories": ["{NUM_CATEGORIES} فئتان من فئات KDP الأنسب بالإنجليزية بصيغة '
         'Amazon BISAC، مثل Fiction > Classics"],\n'
-        '  "description": "وصف تسويقي بالعربية بطول 150-250 كلمة لصفحة المنتج"\n'
+        '  "description": "وصف تسويقي بالعربية بطول 150-250 كلمة لصفحة المنتج",\n'
+        '  "series_line": "جملة قصيرة تصف موضع هذا الكتاب ضمن سلسلته وتربطه بالكتب الأخرى فيها '
+        '(اتركها فارغة \\"\\" إذا لم يكن الكتاب جزءًا من سلسلة)"\n'
         "}\n"
-        "التزم بسبع كلمات مفتاحية بالضبط في مصفوفة keywords."
+        f"التزم بـ {NUM_KEYWORDS} كلمات مفتاحية بالضبط في مصفوفة keywords، "
+        f"وبـ {NUM_CATEGORIES} فئتين بالضبط في مصفوفة categories."
     )
 
     data = _call_json(client, system, user)
-    if len(data.get("keywords", [])) != 7:
-        # One corrective retry asking explicitly for exactly 7.
+    if len(data.get("keywords", [])) != NUM_KEYWORDS or len(data.get("categories", [])) != NUM_CATEGORIES:
+        # One corrective retry, explicit about which counts were wrong.
         data = _call_json(
             client, system,
-            user + f"\n\nملاحظة: أعدت {len(data.get('keywords', []))} كلمات مفتاحية فقط. "
-            "يجب أن تكون القائمة 7 كلمات/عبارات بالضبط، لا أكثر ولا أقل.",
+            user + f"\n\nملاحظة: ردك السابق كان به {len(data.get('keywords', []))} كلمة مفتاحية "
+            f"و{len(data.get('categories', []))} فئة. المطلوب بالضبط {NUM_KEYWORDS} كلمات مفتاحية "
+            f"و{NUM_CATEGORIES} فئتين، لا أكثر ولا أقل.",
         )
 
-    dest = out_dir / "metadata.json"
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     return data

@@ -20,7 +20,8 @@
     encoding: utf-8
   chapters: auto
   status: queued
-  notes: "PLACEHOLDER source URL — replace with a verified public-domain text before running."
+  notes: PLACEHOLDER source URL — replace with a verified public-domain text before
+    running.
 - id: adab-al-katib
   type: classic
   title_ar: أدب الكاتب
@@ -38,7 +39,8 @@
     encoding: utf-8
   chapters: auto
   status: queued
-  notes: "PLACEHOLDER source URL — replace with a verified public-domain text before running."
+  notes: PLACEHOLDER source URL — replace with a verified public-domain text before
+    running.
 - id: kalila-wa-dimna-bilingual
   type: bilingual
   title_ar: كليلة ودمنة
@@ -57,7 +59,8 @@
     encoding: utf-8
   chapters: auto
   status: queued
-  notes: "PLACEHOLDER source URL — same underlying text as kalila-wa-dimna, packaged as a facing-page Arabic/English edition."
+  notes: PLACEHOLDER source URL — same underlying text as kalila-wa-dimna, packaged
+    as a facing-page Arabic/English edition.
 - id: weekly-planner-2026
   type: lowcontent
   title_ar: المخطط الأسبوعي ٢٠٢٦

@@ -91,6 +91,7 @@ def _build_formats(book: dict, out_dir: Path, page_count: int, metadata: dict) -
                 blurb_ar=blurb,
                 style=style,
                 out_path=cover_pdf,
+                series=book.get("series", ""),
             )
             formats[fmt] = {
                 "cover_pdf": str(cover_pdf.relative_to(REPO_ROOT)),
@@ -107,10 +108,17 @@ def _build_formats(book: dict, out_dir: Path, page_count: int, metadata: dict) -
     return formats
 
 
-def process_book(book: dict) -> dict:
-    out_dir = OUTPUT_ROOT / book["id"]
-    out_dir.mkdir(parents=True, exist_ok=True)
+def _manifest_path(book: dict) -> Path:
+    return OUTPUT_ROOT / book["id"] / "manifest.json"
 
+
+def _run_generate_stage(book: dict, out_dir: Path) -> dict:
+    """Build interior + per-format covers/ebook + metadata. Every sub-step
+    (ingest/clean/generate/translate/metadata) is individually idempotent
+    (see their `force` params), so calling this again on a book that
+    previously failed partway through only redoes what's actually missing —
+    this is what makes a retried "failed" book cheap and resumable rather
+    than starting over from scratch."""
     print(f"=== [{book['id']}] stage: generating ({book['type']}, formats={book['formats']}) ===")
     interior_pdf, page_count = _build_interior(book, out_dir)
     page_count = max(page_count, kdp_specs.MIN_PAGE_COUNT)
@@ -132,10 +140,13 @@ def process_book(book: dict) -> dict:
         "formats": formats,
         "metadata_path": str((out_dir / "metadata.json").relative_to(REPO_ROOT)),
     }
-    (out_dir / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    _manifest_path(book).write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     update_status(book["id"], "generated")
     print(f"=== [{book['id']}] generated: {page_count} pages, formats {list(formats)} ===")
+    return manifest
 
+
+def _run_qa_stage(book: dict, manifest: dict) -> None:
     print(f"=== [{book['id']}] stage: QA ===")
     report = run_qa(book)
     for c in report.checks:
@@ -147,12 +158,49 @@ def process_book(book: dict) -> dict:
     update_status(book["id"], "qa_passed")
     print(f"=== [{book['id']}] {report.summary()} ===")
 
+
+def _run_packaging_stage(book: dict, manifest: dict) -> dict:
     print(f"=== [{book['id']}] stage: packaging ===")
     book_after_qa = find_book(book["id"])
     zip_path = package_book(book_after_qa)
     update_status(book["id"], "packaged")
     manifest["package_zip"] = str(zip_path.relative_to(REPO_ROOT))
+    _manifest_path(book).write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"=== [{book['id']}] packaged: {zip_path} ===")
+    return manifest
+
+
+def process_book(book: dict) -> dict:
+    """Resumable at every stage: dispatches on the book's *current* status
+    in books.yaml rather than always starting from scratch, so re-running
+    the pipeline on a book that's already `generated` or `qa_passed` (e.g.
+    a prior run died between stages) picks up where it left off instead of
+    re-paying for completed Claude API calls."""
+    out_dir = OUTPUT_ROOT / book["id"]
+    out_dir.mkdir(parents=True, exist_ok=True)
+    status = book["status"]
+
+    if status in ("packaged", "published"):
+        print(f"=== [{book['id']}] already '{status}' — nothing to do (idempotent no-op) ===")
+        return json.loads(_manifest_path(book).read_text(encoding="utf-8"))
+
+    if status in ("queued", "failed"):
+        manifest = _run_generate_stage(book, out_dir)
+    else:
+        manifest_path = _manifest_path(book)
+        if not manifest_path.exists():
+            raise PipelineError(
+                f"Book '{book['id']}' has status '{status}' but no manifest.json to resume from "
+                "— reset its status to 'queued' to rebuild from scratch"
+            )
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        print(f"=== [{book['id']}] resuming from status '{status}' (reusing existing manifest) ===")
+
+    if find_book(book["id"])["status"] == "generated":
+        _run_qa_stage(book, manifest)
+
+    if find_book(book["id"])["status"] == "qa_passed":
+        manifest = _run_packaging_stage(book, manifest)
 
     return manifest
 
@@ -172,21 +220,31 @@ def main() -> None:
         print(f"Would process: {book['id']} ({book['type']}, formats={book['formats']}, trim {book['trim_size']})")
         return
 
+    # Written unconditionally (success or failure) so CI always knows which
+    # book this run touched and can commit/upload the right artifacts —
+    # including the QA quarantine report on a failure, not just the happy path.
+    breadcrumb_path = OUTPUT_ROOT / "_last_run.json"
+    OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+
     try:
         manifest = process_book(book)
     except Exception as exc:  # noqa: BLE001 - surface full traceback; status already set by process_book on QA failure
         traceback.print_exc()
         if find_book(book["id"])["status"] != "failed":
             update_status(book["id"], "failed", notes=f"Pipeline error: {exc}")
+        breadcrumb_path.write_text(
+            json.dumps(
+                {"book_id": book["id"], "outcome": "failed", "error": str(exc)},
+                ensure_ascii=False, indent=2,
+            ),
+            encoding="utf-8",
+        )
         raise SystemExit(1) from exc
 
     export_csv(OUTPUT_ROOT / "upload_checklist.csv")
 
-    # Small breadcrumb for CI: which book this run processed, and where its
-    # release assets landed, without having to re-scan books.yaml/output/.
-    (OUTPUT_ROOT / "_last_run.json").write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    manifest["outcome"] = "success"
+    breadcrumb_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print(json.dumps(manifest, ensure_ascii=False, indent=2))
 

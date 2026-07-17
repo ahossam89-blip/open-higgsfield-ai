@@ -13,3 +13,4 @@ requests>=2.31
 beautifulsoup4>=4.12
 python-slugify>=8.0
 EbookLib>=0.18
+PyMuPDF>=1.24  # PDF page rasterization for qa/vision_qa.py — no system poppler dependency
