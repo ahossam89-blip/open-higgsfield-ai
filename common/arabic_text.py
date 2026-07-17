@@ -54,6 +54,20 @@ def strip_tatweel(text: str) -> str:
     return _TATWEEL_RE.sub("", text)
 
 
+# Alef variants (hamza-above, hamza-below, madda, wasla) collapsed to the
+# bare alef. This is a deliberate editorial normalization for scanned /
+# OCR'd public-domain sources with inconsistent scribal hamza placement —
+# it does NOT touch hamza on waw/yeh (ؤ ئ) or the standalone hamza (ء),
+# only the four alef letterforms. Disable per-book via
+# books.yaml `normalize.unify_alef: false` if the source's exact
+# orthography must be preserved.
+_ALEF_VARIANTS_RE = re.compile("[أإآٱ]")
+
+
+def unify_alef_forms(text: str) -> str:
+    return _ALEF_VARIANTS_RE.sub("ا", text)
+
+
 def normalize_punctuation(text: str) -> str:
     for src, dst in _PUNCT_MAP.items():
         text = text.replace(src, dst)
@@ -73,6 +87,7 @@ def clean_arabic_text(
     *,
     strip_diacritics_: bool = False,
     strip_tatweel_: bool = True,
+    unify_alef: bool = True,
     normalize_digits: bool = True,
     normalize_form: str = "NFC",
 ) -> str:
@@ -81,6 +96,8 @@ def clean_arabic_text(
     text = normalize_punctuation(text)
     if strip_tatweel_:
         text = strip_tatweel(text)
+    if unify_alef:
+        text = unify_alef_forms(text)
     if strip_diacritics_:
         text = strip_diacritics(text)
     if normalize_digits:

@@ -1,4 +1,17 @@
-"""Read/write helpers for books.yaml — the book production queue."""
+"""Read/write helpers for books.yaml — the book production queue.
+
+Pipeline stages (status field): each book advances strictly in this order,
+or drops to "failed" (with `notes` explaining why) at any stage:
+
+    queued -> generated -> qa_passed -> packaged -> published
+
+    queued      not yet processed
+    generated   interior + cover PDFs (and ebook, if requested) produced
+    qa_passed   automated QA checks (qa/run_qa.py) passed
+    packaged    final per-format deliverables assembled in output/<id>/package/
+    published   attached to a GitHub release
+    failed      pipeline error at any stage; see `notes`
+"""
 
 from __future__ import annotations
 
@@ -10,12 +23,24 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent.parent
 QUEUE_PATH = REPO_ROOT / "books.yaml"
 
-VALID_STATUSES = {"queued", "in_progress", "published", "failed"}
-VALID_TYPES = {"classic", "low-content"}
+STATUS_PIPELINE = ["queued", "generated", "qa_passed", "packaged", "published"]
+VALID_STATUSES = set(STATUS_PIPELINE) | {"failed"}
+VALID_TYPES = {"classic", "bilingual", "lowcontent"}
+VALID_FORMATS = {"paperback", "hardcover", "ebook"}
 
 
 class QueueError(RuntimeError):
     pass
+
+
+def next_status(status: str) -> str:
+    """The status a book advances to after successfully completing `status`'s stage."""
+    if status not in STATUS_PIPELINE:
+        raise QueueError(f"'{status}' has no next stage (not part of the pipeline)")
+    idx = STATUS_PIPELINE.index(status)
+    if idx == len(STATUS_PIPELINE) - 1:
+        raise QueueError(f"'{status}' is already the terminal stage")
+    return STATUS_PIPELINE[idx + 1]
 
 
 def load_queue(path: Path = QUEUE_PATH) -> list[dict[str, Any]]:
@@ -33,8 +58,8 @@ def load_queue(path: Path = QUEUE_PATH) -> list[dict[str, Any]]:
 def save_queue(entries: list[dict[str, Any]], path: Path = QUEUE_PATH) -> None:
     header = (
         "# =============================================================================\n"
-        "# Arabic KDP Book Factory — book queue\n"
-        "# See git history / README for the full field reference.\n"
+        "# Arabic KDP Publishing Factory — book queue\n"
+        "# See BOOK_FACTORY.md for the full field reference.\n"
         "# =============================================================================\n"
     )
     with path.open("w", encoding="utf-8") as fh:
@@ -49,13 +74,24 @@ def save_queue(entries: list[dict[str, Any]], path: Path = QUEUE_PATH) -> None:
 
 
 def _validate_entry(entry: dict[str, Any]) -> None:
-    for field in ("id", "type", "trim_size", "status"):
+    for field in ("id", "type", "formats", "trim_size", "status"):
         if field not in entry:
             raise QueueError(f"Book entry missing required field '{field}': {entry}")
     if entry["type"] not in VALID_TYPES:
         raise QueueError(f"Book '{entry['id']}' has invalid type '{entry['type']}'")
     if entry["status"] not in VALID_STATUSES:
         raise QueueError(f"Book '{entry['id']}' has invalid status '{entry['status']}'")
+    formats = entry["formats"]
+    if not isinstance(formats, list) or not formats:
+        raise QueueError(f"Book '{entry['id']}' must have a non-empty 'formats' list")
+    unknown = set(formats) - VALID_FORMATS
+    if unknown:
+        raise QueueError(f"Book '{entry['id']}' has unknown formats {unknown}; valid: {VALID_FORMATS}")
+    if entry["type"] == "lowcontent" and "ebook" in formats:
+        raise QueueError(
+            f"Book '{entry['id']}' is type=lowcontent — 'ebook' format is not supported "
+            "(planners/workbooks are print-only)"
+        )
 
 
 def find_book(book_id: str, path: Path = QUEUE_PATH) -> Optional[dict[str, Any]]:

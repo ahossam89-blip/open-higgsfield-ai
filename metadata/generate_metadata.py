@@ -71,7 +71,8 @@ def _parse_json_object(raw: str) -> dict:
 
 def _content_summary(book: dict, out_dir: Path) -> str:
     """Pull a short summary of the book's actual content to ground the
-    metadata generation — the introduction for classics, or the spec for
+    metadata generation — the introduction for classics, the translator's
+    preface + chapter list for bilingual editions, or the spec for
     low-content books."""
     if book["type"] == "classic":
         content_path = out_dir / "generated_content.json"
@@ -81,6 +82,19 @@ def _content_summary(book: dict, out_dir: Path) -> str:
             chapter_titles = "، ".join(c["heading"] for c in content.get("chapters", [])[:15])
             return f"مقدمة الكتاب (مقتطف):\n{intro[:2000]}\n\nعناوين الفصول: {chapter_titles}"
         return ""
+
+    if book["type"] == "bilingual":
+        content_path = out_dir / "bilingual_content.json"
+        if content_path.exists():
+            content = json.loads(content_path.read_text(encoding="utf-8"))
+            preface = content.get("translator_preface_en", "")
+            chapter_titles = "، ".join(c["heading"] for c in content.get("chapters", [])[:15])
+            return (
+                f"طبعة ثنائية اللغة (عربي-إنجليزي). مقدمة المترجم (مقتطف):\n{preface[:1200]}\n\n"
+                f"عناوين الفصول: {chapter_titles}"
+            )
+        return ""
+
     spec = book.get("spec", {})
     return f"نوع المحتوى: {book.get('generator')}\nمواصفات: {json.dumps(spec, ensure_ascii=False)}"
 
@@ -130,7 +144,7 @@ def main() -> None:
     parser.add_argument("--dir", required=True)
     parser.add_argument("--title", required=True)
     parser.add_argument("--author", default="")
-    parser.add_argument("--type", default="classic", choices=["classic", "low-content"])
+    parser.add_argument("--type", default="classic", choices=["classic", "bilingual", "lowcontent"])
     args = parser.parse_args()
 
     book = {"title_ar": args.title, "author_ar": args.author, "type": args.type}

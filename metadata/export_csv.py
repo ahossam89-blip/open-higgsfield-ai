@@ -22,7 +22,9 @@ OUTPUT_ROOT = REPO_ROOT / "output"
 CSV_COLUMNS = [
     "book_id",
     "type",
+    "series",
     "status",
+    "formats",
     "title",
     "subtitle",
     "author",
@@ -40,7 +42,10 @@ CSV_COLUMNS = [
     "keyword_7",
     "description",
     "interior_pdf",
-    "cover_pdf",
+    "cover_pdf_paperback",
+    "cover_pdf_hardcover",
+    "ebook_epub",
+    "package_zip",
     "notes",
 ]
 
@@ -54,22 +59,28 @@ def _book_row(book: dict) -> dict:
 
     manifest_path = out_dir / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
+    formats = manifest.get("formats", {})
 
     row = {
         "book_id": book["id"],
         "type": book["type"],
+        "series": book.get("series", ""),
         "status": book["status"],
+        "formats": " | ".join(book.get("formats", [])),
         "title": metadata.get("title", book.get("title_ar", "")),
         "subtitle": metadata.get("subtitle", ""),
         "author": book.get("author_ar", ""),
-        "language": "Arabic",
+        "language": "Arabic/English" if book["type"] == "bilingual" else "Arabic",
         "trim_size": book["trim_size"],
         "paper_type": book.get("paper_type", "white"),
         "page_count": manifest.get("page_count", ""),
         "categories": " | ".join(metadata.get("categories", [])),
         "description": metadata.get("description", ""),
         "interior_pdf": manifest.get("interior_pdf", ""),
-        "cover_pdf": manifest.get("cover_pdf", ""),
+        "cover_pdf_paperback": formats.get("paperback", {}).get("cover_pdf", ""),
+        "cover_pdf_hardcover": formats.get("hardcover", {}).get("cover_pdf", ""),
+        "ebook_epub": formats.get("ebook", {}).get("epub", ""),
+        "package_zip": manifest.get("package_zip", ""),
         "notes": book.get("notes", ""),
     }
     for i, kw in enumerate(keywords, start=1):

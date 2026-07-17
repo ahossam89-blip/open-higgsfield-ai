@@ -1,84 +1,72 @@
 # =============================================================================
-# Arabic KDP Book Factory — book queue
+# Arabic KDP Publishing Factory — book queue
+# See BOOK_FACTORY.md for the full field reference.
 # =============================================================================
-# Each entry describes one book to produce. The weekly GitHub Action
-# (.github/workflows/weekly-book-factory.yml) picks the first entry with
-# status: queued, runs the matching pipeline (classics/ or lowcontent/),
-# generates cover + interior PDFs + metadata, attaches everything to a
-# GitHub Release, and flips status to "published" (or "failed").
-#
-# ---------------------------------------------------------------------------
-# Common fields
-#   id            unique slug, used for filenames and output/<id>/ directory
-#   type          "classic" | "low-content"
-#   title_ar      working Arabic title (final title may be refined by
-#                 metadata/generate_metadata.py)
-#   trim_size     key into common/kdp_specs.py TRIM_SIZES, e.g. "6x9"
-#   paper_type    "white" | "cream" | "color"  (affects spine width)
-#   status        "queued" | "in_progress" | "published" | "failed"
-#   notes         free text, optional
-#
-# ---------------------------------------------------------------------------
-# type: classic  (see classics/build.py)
-#   source:
-#     url         plain-text/HTML source of a public-domain Arabic work
-#                 (e.g. an archive.org or Al-Maktaba Al-Shamela plaintext URL)
-#     format      "text" | "html"
-#     encoding    source text encoding (default utf-8)
-#   author_ar     original author, for the colophon/title page
-#   chapters      optional: how to split the source into chapters.
-#                 "auto" detects headings; or a regex pattern string.
-#
-# ---------------------------------------------------------------------------
-# type: low-content  (see lowcontent/*)
-#   generator     "planner" | "workbook"
-#   spec:         generator-specific parameters, see
-#                 lowcontent/planners/generate_planner.py and
-#                 lowcontent/workbooks/generate_workbook.py for the full
-#                 option list (page_count, year, style, letters, ...)
-# =============================================================================
-
-# NOTE: the two "classic" entries below are structural examples only — their
-# source.url values are placeholders, NOT verified links to real public-domain
-# texts. Before queuing a classic for real, replace source.url with a URL you
-# have personally confirmed points to a public-domain (or otherwise rights-
-# clear) plain-text/HTML edition (e.g. a specific, checked archive.org,
-# Wikisource, or Al-Maktaba Al-Shamela item), and fill in trim_size/author_ar
-# accordingly. Do not run the pipeline against an unverified source.url.
-
 - id: kalila-wa-dimna
   type: classic
-  title_ar: "كليلة ودمنة"
-  author_ar: "عبد الله بن المقفع"
-  trim_size: "6x9"
+  title_ar: كليلة ودمنة
+  author_ar: عبد الله بن المقفع
+  series: روائع التراث العربي
+  formats:
+  - paperback
+  - hardcover
+  - ebook
+  trim_size: 6x9
   paper_type: white
+  cover_style: classic
   source:
-    url: "https://example.org/public-domain/kalila-wa-dimna.txt"
+    url: https://example.org/public-domain/kalila-wa-dimna.txt
     format: text
     encoding: utf-8
   chapters: auto
   status: queued
   notes: "PLACEHOLDER source URL — replace with a verified public-domain text before running."
-
 - id: adab-al-katib
   type: classic
-  title_ar: "أدب الكاتب"
-  author_ar: "ابن قتيبة"
-  trim_size: "5.5x8.5"
+  title_ar: أدب الكاتب
+  author_ar: ابن قتيبة
+  series: روائع التراث العربي
+  formats:
+  - paperback
+  - ebook
+  trim_size: 5.5x8.5
   paper_type: cream
+  cover_style: modern
   source:
-    url: "https://example.org/public-domain/adab-al-katib.txt"
+    url: https://example.org/public-domain/adab-al-katib.txt
     format: text
     encoding: utf-8
   chapters: auto
   status: queued
   notes: "PLACEHOLDER source URL — replace with a verified public-domain text before running."
-
-- id: weekly-planner-2026
-  type: low-content
-  title_ar: "المخطط الأسبوعي ٢٠٢٦"
-  trim_size: "8.5x11"
+- id: kalila-wa-dimna-bilingual
+  type: bilingual
+  title_ar: كليلة ودمنة
+  title_en: Kalila and Dimna
+  author_ar: عبد الله بن المقفع
+  series: Classical Arabic in Translation
+  formats:
+  - paperback
+  - ebook
+  trim_size: 6.14x9.21
   paper_type: white
+  cover_style: warm
+  source:
+    url: https://example.org/public-domain/kalila-wa-dimna.txt
+    format: text
+    encoding: utf-8
+  chapters: auto
+  status: queued
+  notes: "PLACEHOLDER source URL — same underlying text as kalila-wa-dimna, packaged as a facing-page Arabic/English edition."
+- id: weekly-planner-2026
+  type: lowcontent
+  title_ar: المخطط الأسبوعي ٢٠٢٦
+  series: مخططات KDP
+  formats:
+  - paperback
+  trim_size: 8.5x11
+  paper_type: white
+  cover_style: modern
   generator: planner
   spec:
     kind: weekly
@@ -89,12 +77,16 @@
     style: minimal
     include_habit_tracker: true
   status: queued
-
 - id: arabic-handwriting-workbook-1
-  type: low-content
-  title_ar: "دفتر تمارين الخط العربي - المستوى الأول"
-  trim_size: "8.5x11"
+  type: lowcontent
+  title_ar: دفتر تمارين الخط العربي - المستوى الأول
+  series: دفاتر تعلم العربية
+  formats:
+  - paperback
+  - hardcover
+  trim_size: 8.5x11
   paper_type: white
+  cover_style: modern
   generator: workbook
   spec:
     kind: letter-tracing

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ title_ar }}</title>
+<link rel="stylesheet" href="bilingual_book.css">
+<style>
+    @page {
+        size: {{ page_width_in }}in {{ page_height_in }}in;
+        margin-top: {{ margin_top_in }}in;
+        margin-bottom: {{ margin_bottom_in }}in;
+    }
+    /* Standard LTR binding (spine on the left of the closed book): the
+       recto/right page's gutter is on its LEFT (near the spine), the
+       verso/left page's gutter is on its RIGHT — opposite of the
+       classics/ RTL-bound template. Arabic is typeset on recto (right)
+       pages, English on verso (left) pages, per the facing-page brief. */
+    @page :right {
+        margin-left: {{ margin_inside_in }}in;
+        margin-right: {{ margin_outside_in }}in;
+        @bottom-center { content: counter(page); font-family: "Cairo", sans-serif; font-size: 9pt; color: #555; }
+        @top-right { content: "{{ title_ar }}"; font-family: "Cairo", sans-serif; font-size: 8pt; color: #888; }
+    }
+    @page :left {
+        margin-right: {{ margin_inside_in }}in;
+        margin-left: {{ margin_outside_in }}in;
+        @bottom-center { content: counter(page); font-family: Georgia, serif; font-size: 9pt; color: #555; }
+        @top-left { content: "{{ title_en }}"; font-family: Georgia, serif; font-size: 8pt; color: #888; }
+    }
+    @page title { margin: 0; }
+    @page colophon {
+        margin-top: {{ margin_top_in }}in;
+        margin-bottom: {{ margin_bottom_in }}in;
+        margin-left: {{ margin_inside_in }}in;
+        margin-right: {{ margin_outside_in }}in;
+    }
+</style>
+</head>
+<body>
+
+<section class="title-page">
+    <div class="kicker">Bilingual Arabic&ndash;English Edition &middot; طبعة عربية-إنجليزية</div>
+    <h1 class="ar">{{ title_ar }}</h1>
+    <h1 class="en">{{ title_en }}</h1>
+    {% if author_ar %}<div class="author ar">{{ author_ar }}</div>{% endif %}
+</section>
+
+<section class="colophon en">
+    <h3 style="font-family:Georgia,serif;">Publication Details</h3>
+    <p>Title: {{ title_ar }} / {{ title_en }}</p>
+    {% if author_ar %}<p>Original author: {{ author_ar }}</p>{% endif %}
+    <p>The original Arabic text is in the public domain. This edition adds an
+       English translation, a translator's preface, and a glossary prepared
+       specifically for this edition.</p>
+    <p>Facing pages: the English translation is set on the left-hand page,
+       the Arabic original on the right-hand page, paragraph for paragraph.</p>
+    <p>Edition date: {{ generation_date }}</p>
+</section>
+
+<section class="toc en">
+    <h2>Contents</h2>
+    <ol>
+        <li><span>Translator's Preface</span></li>
+        {% for chapter in chapters %}
+        <li><span>{{ chapter.heading_en }} &nbsp;/&nbsp; {{ chapter.heading }}</span></li>
+        {% endfor %}
+        <li><span>Glossary</span></li>
+    </ol>
+</section>
+
+<section class="preface en">
+    <h2>Translator's Preface</h2>
+    {% for para in preface_paragraphs %}
+    <p class="en">{{ para }}</p>
+    {% endfor %}
+</section>
+
+{% for chapter in chapters %}
+{% for i in range(chapter.paragraphs_en|length) %}
+<section class="spread-page en" style="page-break-before: left;">
+    {% if i == 0 %}<h3 class="en">{{ chapter.heading_en }}</h3>{% endif %}
+    <p class="en">{{ chapter.paragraphs_en[i] }}</p>
+</section>
+<section class="spread-page ar" dir="rtl" style="page-break-before: right;">
+    {% if i == 0 %}<h3 class="ar">{{ chapter.heading }}</h3>{% endif %}
+    <p class="ar">{{ chapter.paragraphs_ar[i] }}</p>
+    {% if i == chapter.paragraphs_en|length - 1 and chapter.annotations %}
+    <div class="annotations ar">
+        <h4>حواشٍ</h4>
+        <ol>
+            {% for note in chapter.annotations %}
+            <li><strong>{{ note.term }}:</strong> {{ note.note }}</li>
+            {% endfor %}
+        </ol>
+    </div>
+    {% endif %}
+</section>
+{% endfor %}
+{% endfor %}
+
+<section class="glossary en" style="page-break-before: left;">
+    <h2>Glossary</h2>
+    <dl>
+        {% for item in glossary %}
+        <dt class="ar">{{ item.term }}</dt>
+        <dd class="ar">{{ item.definition }}</dd>
+        {% endfor %}
+    </dl>
+</section>
+
+</body>
+</html>

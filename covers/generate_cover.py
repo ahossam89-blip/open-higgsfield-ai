@@ -1,6 +1,8 @@
-"""Generate a KDP-ready full-wrap paperback cover (back | spine | front) as
-a single PDF sized exactly to the bleed sheet computed by
-common/kdp_specs.compute_cover_layout, with Arabic typography.
+"""Generate a KDP-ready full-wrap cover (back | spine | front) as a single
+PDF sized exactly to the bleed/wrap sheet computed by
+common/kdp_specs.compute_cover_layout (paperback) or
+common/kdp_specs.compute_hardcover_cover_layout (hardcover), with Arabic
+typography.
 
 KDP always expects the flat cover file laid out back-cover-left,
 spine-center, front-cover-right — this is a fixed print-production
@@ -13,10 +15,13 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from typing import Union
 
 from common import kdp_specs
 from lowcontent.common.pdf_render import svg_pages_to_pdf
 from lowcontent.common.svg_utils import ARABIC_HEADING_FONT_STACK, SvgPage, PT_PER_IN
+
+CoverLayoutT = Union[kdp_specs.CoverLayout, kdp_specs.HardcoverCoverLayout]
 
 STYLE_PALETTES = {
     "classic": {"bg": "#0f2a3d", "accent": "#d9b26a", "text": "#f5efe3"},
@@ -25,23 +30,32 @@ STYLE_PALETTES = {
 }
 
 
-def _safe_rect(x0_in: float, x1_in: float, layout: kdp_specs.CoverLayout, trim_side: str) -> tuple[float, float, float, float]:
+def _outer_margin_in(layout: CoverLayoutT) -> float:
+    """The margin between the trim line and the outer sheet edge — bleed
+    for paperback, wrap for hardcover."""
+    if isinstance(layout, kdp_specs.HardcoverCoverLayout):
+        return layout.wrap_in
+    return layout.bleed_in
+
+
+def _safe_rect(x0_in: float, x1_in: float, layout: CoverLayoutT, trim_side: str) -> tuple[float, float, float, float]:
     """Safe (live) area in points for a panel spanning x0_in..x1_in, keeping
-    `safety_margin_in` away from the trim edges (not the bleed edges)."""
+    `safety_margin_in` away from the trim edges (not the bleed/wrap edges)."""
+    outer = _outer_margin_in(layout)
     margin = layout.safety_margin_in
-    top = (layout.bleed_in + margin) * PT_PER_IN
-    bottom = (layout.sheet_height_in - layout.bleed_in - margin) * PT_PER_IN
+    top = (outer + margin) * PT_PER_IN
+    bottom = (layout.sheet_height_in - outer - margin) * PT_PER_IN
     if trim_side == "back":
-        left = (x0_in + layout.bleed_in + margin) * PT_PER_IN
+        left = (x0_in + outer + margin) * PT_PER_IN
         right = (x1_in - margin) * PT_PER_IN
-    else:  # front: outer bleed is on the right
+    else:  # front: outer bleed/wrap is on the right
         left = (x0_in + margin) * PT_PER_IN
-        right = (x1_in - layout.bleed_in - margin) * PT_PER_IN
+        right = (x1_in - outer - margin) * PT_PER_IN
     return left, top, right, bottom
 
 
 def generate_cover_pdf(
-    layout: kdp_specs.CoverLayout,
+    layout: CoverLayoutT,
     title_ar: str,
     author_ar: str,
     subtitle_ar: str,
@@ -131,11 +145,18 @@ def _wrapped_text_block(page: SvgPage, text: str, x: float, y: float, max_width_
         page.text(x + max_width_pt, y + i * line_height, line, size=size, anchor="end", fill=fill)
 
 
+def compute_layout_for_binding(binding: str, trim_size: str, page_count: int, paper_type: str) -> CoverLayoutT:
+    if binding == "hardcover":
+        return kdp_specs.compute_hardcover_cover_layout(trim_size, page_count, paper_type)
+    return kdp_specs.compute_cover_layout(trim_size, page_count, paper_type)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate a full-wrap KDP cover PDF")
     parser.add_argument("--trim-size", required=True)
     parser.add_argument("--page-count", type=int, required=True)
     parser.add_argument("--paper-type", default="white")
+    parser.add_argument("--binding", default="paperback", choices=["paperback", "hardcover"])
     parser.add_argument("--title", required=True)
     parser.add_argument("--author", default="")
     parser.add_argument("--subtitle", default="")
@@ -144,7 +165,7 @@ def main() -> None:
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
 
-    layout = kdp_specs.compute_cover_layout(args.trim_size, args.page_count, args.paper_type)
+    layout = compute_layout_for_binding(args.binding, args.trim_size, args.page_count, args.paper_type)
     out = generate_cover_pdf(
         layout, args.title, args.author, args.subtitle, args.blurb, args.style, Path(args.out)
     )

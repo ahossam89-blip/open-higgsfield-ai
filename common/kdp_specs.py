@@ -199,3 +199,92 @@ def compute_cover_layout(
 def clamp_page_count_for_color(page_count: int, paper_type: str) -> int:
     cap = MAX_PAGE_COUNT_COLOR if paper_type == "color" else MAX_PAGE_COUNT_BW
     return min(page_count, cap)
+
+
+# ---------------------------------------------------------------------------
+# Hardcover (case laminate) cover geometry.
+#
+# Hardcover uses a different flat-sheet layout than paperback: instead of a
+# 0.125in bleed, the case wrap needs a 0.75in "wrap" extension on the top/
+# bottom/outer edges (the material that folds around the board edge), plus a
+# 0.75in "hinge" strip on each side of the spine (where the case flexes —
+# keep this area free of live text/important art). The printed case spine
+# is also wider than the interior paper-block spine by the board thickness.
+#
+# These constants are transcribed from KDP's published hardcover cover
+# template guidance and are APPROXIMATE — re-verify against KDP's current
+# hardcover cover calculator before a real print run.
+# ---------------------------------------------------------------------------
+HARDCOVER_WRAP_IN = 0.75
+HARDCOVER_HINGE_IN = 0.75
+HARDCOVER_BOARD_THICKNESS_IN = 0.088
+
+
+@dataclass(frozen=True)
+class HardcoverCoverLayout:
+    """Full case-wrap cover geometry in inches, left to right:
+    wrap | back panel | hinge | spine | hinge | front panel | wrap."""
+    trim_width_in: float
+    trim_height_in: float
+    page_count: int
+    paper_type: str
+    spine_width_in: float
+    wrap_in: float
+    hinge_in: float
+    sheet_width_in: float
+    sheet_height_in: float
+    back_x0_in: float
+    back_x1_in: float
+    spine_x0_in: float
+    spine_x1_in: float
+    front_x0_in: float
+    front_x1_in: float
+    safety_margin_in: float
+
+
+def hardcover_spine_width_in(page_count: int, paper_type: str = "white") -> float:
+    """Printed case spine width = interior paper-block spine + board thickness
+    on each side of the block (front and back board)."""
+    return round(
+        spine_width_in(page_count, paper_type) + 2 * HARDCOVER_BOARD_THICKNESS_IN, 4
+    )
+
+
+def compute_hardcover_cover_layout(
+    trim_size: str,
+    page_count: int,
+    paper_type: str = "white",
+    wrap_in: float = HARDCOVER_WRAP_IN,
+    hinge_in: float = HARDCOVER_HINGE_IN,
+) -> HardcoverCoverLayout:
+    trim_w, trim_h = get_trim_size(trim_size)
+    spine_w = hardcover_spine_width_in(page_count, paper_type)
+
+    sheet_width = wrap_in + trim_w + hinge_in + spine_w + hinge_in + trim_w + wrap_in
+    sheet_height = trim_h + 2 * wrap_in
+
+    back_x0 = 0.0
+    back_x1 = wrap_in + trim_w
+    spine_x0 = back_x1 + hinge_in
+    spine_x1 = spine_x0 + spine_w
+    front_x0 = spine_x1 + hinge_in
+    front_x1 = sheet_width
+
+    return HardcoverCoverLayout(
+        trim_width_in=trim_w,
+        trim_height_in=trim_h,
+        page_count=page_count,
+        paper_type=paper_type,
+        spine_width_in=spine_w,
+        wrap_in=wrap_in,
+        hinge_in=hinge_in,
+        sheet_width_in=round(sheet_width, 4),
+        sheet_height_in=round(sheet_height, 4),
+        back_x0_in=round(back_x0, 4),
+        back_x1_in=round(back_x1, 4),
+        spine_x0_in=round(spine_x0, 4),
+        spine_x1_in=round(spine_x1, 4),
+        front_x0_in=round(front_x0, 4),
+        front_x1_in=round(front_x1, 4),
+        safety_margin_in=COVER_SAFETY_MARGIN_IN,
+    )

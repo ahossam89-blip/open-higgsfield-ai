@@ -140,14 +140,17 @@ Built with [Muapi.ai](https://muapi.ai) — the unified API for AI image generat
 
 ---
 
-## 📚 Arabic KDP Book Factory
+## 📚 Arabic KDP Publishing Factory
 
 This repository also hosts an unrelated automated pipeline for producing
-Arabic-language Amazon KDP paperbacks (public-domain classics with original
-Claude-generated introductions/annotations, plus low-content planners and
-handwriting workbooks), with a weekly GitHub Action that turns a queue in
-`books.yaml` into print-ready interior + cover PDFs and listing metadata.
-See [`BOOK_FACTORY.md`](BOOK_FACTORY.md) for the full documentation.
+Arabic-language Amazon KDP books — public-domain classics with original
+Claude-generated introductions/annotations, facing-page Arabic/English
+bilingual editions with Claude-generated translations, and low-content
+planners/handwriting workbooks — each in paperback, hardcover, and/or
+ebook (EPUB) format. A weekly GitHub Action runs a book through
+generation, an automated QA gate, and packaging, then attaches the result
+to a draft GitHub Release. See [`BOOK_FACTORY.md`](BOOK_FACTORY.md) for the
+full documentation.
 
 ---
 **Deep Dive**: For more details on the "AI Influencer" engine, upcoming "Popcorn" storyboarding features, and the future of this project, read the [full technical overview](https://medium.com/@anilmatcha/building-open-higgsfield-ai-an-open-source-ai-cinema-studio-83c1e0a2a5f1).

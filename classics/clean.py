@@ -20,7 +20,13 @@ def clean_book(book: dict, out_dir: Path) -> Path:
         raise FileNotFoundError(f"{raw_path} not found — run ingest first")
 
     raw = raw_path.read_text(encoding="utf-8")
-    cleaned = clean_arabic_text(raw, strip_diacritics_=False, strip_tatweel_=True)
+    normalize_cfg = book.get("normalize", {})
+    cleaned = clean_arabic_text(
+        raw,
+        strip_diacritics_=normalize_cfg.get("strip_diacritics", False),
+        strip_tatweel_=normalize_cfg.get("strip_tatweel", True),
+        unify_alef=normalize_cfg.get("unify_alef", True),
+    )
 
     chapters_cfg = book.get("chapters", "auto")
     if chapters_cfg == "auto":
