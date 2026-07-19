@@ -1,0 +1,16 @@
+# Arabic KDP Publishing Factory — Python dependencies
+# Install with: pip install -r requirements.txt
+# WeasyPrint additionally needs system libraries (Pango, Cairo, GDK-Pixbuf,
+# HarfBuzz) for correct Arabic shaping — see BOOK_FACTORY.md "Setup".
+
+PyYAML>=6.0
+Jinja2>=3.1
+weasyprint>=62.0
+cairosvg>=2.7
+pypdf>=4.0
+anthropic>=0.40
+requests>=2.31
+beautifulsoup4>=4.12
+python-slugify>=8.0
+EbookLib>=0.18
+PyMuPDF>=1.24  # PDF page rasterization for qa/vision_qa.py — no system poppler dependency

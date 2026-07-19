@@ -1,0 +1,104 @@
+/* Static typography rules for bilingual Arabic/English facing-page
+   typesetting. Page geometry (size, margins) is injected per-book by
+   typeset.py into an inline <style> block. */
+
+@font-face {
+    font-family: "Amiri";
+    src: url("../../assets/fonts/Amiri-Regular.ttf");
+    font-weight: normal;
+}
+@font-face {
+    font-family: "Amiri";
+    src: url("../../assets/fonts/Amiri-Bold.ttf");
+    font-weight: bold;
+}
+@font-face {
+    font-family: "Cairo";
+    src: url("../../assets/fonts/Cairo-Regular.ttf");
+    font-weight: normal;
+}
+@font-face {
+    font-family: "Cairo";
+    src: url("../../assets/fonts/Cairo-Bold.ttf");
+    font-weight: bold;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-size: 12pt;
+    line-height: 1.7;
+    color: #1a1a1a;
+}
+
+.ar {
+    direction: rtl;
+    unicode-bidi: embed;
+    font-family: "Amiri", "Noto Naskh Arabic", serif;
+    text-align: justify;
+}
+.en {
+    direction: ltr;
+    unicode-bidi: embed;
+    font-family: Georgia, "Times New Roman", serif;
+    text-align: justify;
+}
+
+.title-page {
+    page: title;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+}
+.title-page .kicker { font-family: "Cairo", sans-serif; font-size: 11pt; color: #555; margin-bottom: 1.2em; }
+.title-page h1.ar { font-family: "Cairo", sans-serif; font-size: 28pt; margin: 0 0 0.15em 0; }
+.title-page h1.en { font-family: Georgia, serif; font-style: italic; font-size: 20pt; margin: 0 0 0.5em 0; }
+.title-page .author { font-size: 14pt; margin-top: 0.6em; }
+
+.colophon { page: colophon; font-size: 9.5pt; color: #444; line-height: 1.6; }
+.colophon p { margin: 0.4em 0; }
+
+.toc { page: toc; }
+.toc h2 { font-family: "Cairo", sans-serif; }
+.toc ol { list-style: none; padding: 0; margin: 0; }
+.toc li {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px dotted #ccc;
+    padding: 0.3em 0;
+    font-size: 10.5pt;
+}
+
+.preface { padding-top: 0; }
+.preface h2 { font-family: Georgia, serif; font-style: italic; text-align: center; font-size: 18pt; }
+.preface p.en { text-indent: 1.2em; margin: 0 0 0.6em 0; }
+
+.spread-page {
+    height: 100%;
+}
+.spread-page h3.ar { font-family: "Cairo", sans-serif; font-size: 15pt; text-align: center; margin: 0 0 0.8em 0; }
+.spread-page h3.en { font-family: Georgia, serif; font-size: 14pt; text-align: center; margin: 0 0 0.8em 0; font-style: italic; }
+.spread-page p { margin: 0 0 0.6em 0; }
+.spread-page p.ar { text-indent: 1.2em; }
+.spread-page p.en { text-indent: 1.2em; }
+
+.annotations {
+    margin-top: 1.2em;
+    padding-top: 0.7em;
+    border-top: 1px solid #ccc;
+    font-size: 9pt;
+    color: #333;
+}
+.annotations.ar h4 { font-family: "Cairo", sans-serif; font-size: 9.5pt; margin: 0 0 0.4em 0; }
+.annotations ol { margin: 0; padding-inline-start: 1.3em; }
+
+.glossary { page: glossary; }
+.glossary dl { columns: 2; column-gap: 2em; }
+.glossary dt { font-weight: bold; font-family: "Cairo", sans-serif; font-size: 10.5pt; break-inside: avoid; margin-top: 0.5em; }
+.glossary dd { margin: 0.1em 0 0.1em 0; font-size: 10pt; color: #333; }

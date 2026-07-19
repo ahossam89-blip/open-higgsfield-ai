@@ -1,0 +1,154 @@
+name: Arabic KDP Publishing Factory
+
+on:
+  schedule:
+    # Every Monday at 06:00 UTC.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      book_id:
+        description: "Process this specific book id instead of the next queued one"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: book-factory
+  cancel-in-progress: false
+
+jobs:
+  produce-book:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install WeasyPrint system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 \
+            libffi-dev shared-mime-info fonts-noto-core
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Cache Arabic fonts
+        uses: actions/cache@v4
+        with:
+          path: assets/fonts
+          key: fonts-v1-${{ hashFiles('scripts/fetch_fonts.py') }}
+
+      - name: Fetch Arabic fonts
+        run: python -m scripts.fetch_fonts
+
+      - name: Show next queued book (dry run)
+        run: python -m scripts.run_pipeline --dry-run ${{ github.event.inputs.book_id && format('--id {0}', github.event.inputs.book_id) || '' }}
+
+      # Runs the full pipeline: generate (interior + per-format covers/ebook
+      # + metadata) -> QA gate (structural checks + Claude vision QA) ->
+      # package. Idempotent/resumable at every stage (see common/queue.py
+      # and each stage module's `force` param) — a retry of a "failed" book
+      # only redoes what's actually missing. On success the book's status
+      # ends at "packaged"; on a build or QA failure it ends at "failed"
+      # (quarantined — see output/<id>/qa_report/), `notes` explains why,
+      # and this step exits non-zero (the job is correctly red — a human
+      # needs to look at the quarantine report).
+      - name: Run book factory pipeline
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AMAZON_MARKETPLACE_ID: ${{ secrets.AMAZON_MARKETPLACE_ID }}
+        run: python -m scripts.run_pipeline ${{ github.event.inputs.book_id && format('--id {0}', github.event.inputs.book_id) || '' }}
+
+      # Runs whether the pipeline above succeeded or failed — this is what
+      # actually persists the QA quarantine report (and the "failed" status)
+      # back to the repo instead of losing it when the runner is torn down.
+      - name: Read run breadcrumb
+        id: manifest
+        if: always()
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          m = json.load(open("output/_last_run.json", encoding="utf-8"))
+          print(f"book_id={m['book_id']}")
+          print(f"outcome={m.get('outcome', 'unknown')}")
+          print(f"series={m.get('series') or ''}")
+          print(f"metadata_path={m.get('metadata_path', '')}")
+          print(f"package_zip={m.get('package_zip', '')}")
+          print(f"page_count={m.get('page_count', '')}")
+          print("formats=" + ",".join(m.get("formats", {}).keys()))
+          PY
+
+      - name: Commit queue status update
+        if: always()
+        run: |
+          git config user.name "book-factory-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add books.yaml
+          BOOK_DIR="output/${{ steps.manifest.outputs.book_id }}"
+          for f in "$BOOK_DIR/metadata.json" "$BOOK_DIR/manifest.json" \
+                   "$BOOK_DIR/package/package_manifest.json" "$BOOK_DIR/qa_report"; do
+            [ -e "$f" ] && git add -f "$f"
+          done
+          git diff --cached --quiet || git commit -m "book-factory: ${{ steps.manifest.outputs.outcome }} ${{ steps.manifest.outputs.book_id }}"
+          git push
+
+      # Only reached if the pipeline (and thus QA) succeeded above, so the
+      # release always contains a QA-passed, packaged book.
+      - name: Create release
+        if: steps.manifest.outputs.outcome == 'success'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: book-${{ steps.manifest.outputs.book_id }}-${{ github.run_number }}
+          name: "${{ steps.manifest.outputs.book_id }} (${{ steps.manifest.outputs.page_count }} pages)"
+          body: |
+            Automated weekly build from the Arabic KDP Publishing Factory.
+
+            - Book: `${{ steps.manifest.outputs.book_id }}`
+            - Series: ${{ steps.manifest.outputs.series }}
+            - Pages: ${{ steps.manifest.outputs.page_count }}
+            - Formats: ${{ steps.manifest.outputs.formats }}
+
+            `*-package.zip` contains every per-format deliverable ready for
+            KDP upload (interior PDF, one cover PDF per print format, EPUB if
+            requested, and `metadata.json`). See `upload_checklist.csv` for
+            title/subtitle/keywords/categories across the whole queue.
+          draft: true
+          files: |
+            ${{ steps.manifest.outputs.package_zip }}
+            ${{ steps.manifest.outputs.metadata_path }}
+            output/upload_checklist.csv
+
+      # Only flip to "published" once the release above actually exists.
+      - name: Mark published
+        if: steps.manifest.outputs.outcome == 'success'
+        run: |
+          python -c "from common.queue import update_status; update_status('${{ steps.manifest.outputs.book_id }}', 'published')"
+          git add books.yaml
+          git diff --cached --quiet || git commit -m "book-factory: publish ${{ steps.manifest.outputs.book_id }}"
+          git push
+
+      - name: Upload run artifacts (including QA quarantine report on failure)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: book-factory-run-${{ github.run_number }}
+          path: |
+            output/
+            books.yaml
+          retention-days: 30

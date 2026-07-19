@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>{{ title_ar }}</title>
+<link rel="stylesheet" href="book.css">
+<style>
+    @page {
+        size: {{ page_width_in }}in {{ page_height_in }}in;
+        margin-top: {{ margin_top_in }}in;
+        margin-bottom: {{ margin_bottom_in }}in;
+    }
+    /* Right-hand (odd) pages: gutter/binding margin is on the RIGHT for an
+       RTL book (the spine sits at the right edge of the front cover). */
+    @page :right {
+        margin-right: {{ margin_inside_in }}in;
+        margin-left: {{ margin_outside_in }}in;
+        @bottom-center { content: counter(page); font-family: "Cairo", sans-serif; font-size: 9pt; color: #555; }
+        @top-left { content: "{{ title_ar }}"; font-family: "Cairo", sans-serif; font-size: 8pt; color: #888; }
+    }
+    @page :left {
+        margin-left: {{ margin_inside_in }}in;
+        margin-right: {{ margin_outside_in }}in;
+        @bottom-center { content: counter(page); font-family: "Cairo", sans-serif; font-size: 9pt; color: #555; }
+        @top-right { content: "{{ author_ar or title_ar }}"; font-family: "Cairo", sans-serif; font-size: 8pt; color: #888; }
+    }
+    @page title { margin: 0; }
+    @page colophon {
+        margin-top: {{ margin_top_in }}in;
+        margin-bottom: {{ margin_bottom_in }}in;
+        margin-right: {{ margin_outside_in }}in;
+        margin-left: {{ margin_inside_in }}in;
+    }
+</style>
+</head>
+<body>
+
+<section class="title-page">
+    <div class="kicker">طبعة جديدة محقّقة ومشروحة</div>
+    <h1>{{ title_ar }}</h1>
+    {% if author_ar %}<div class="author">{{ author_ar }}</div>{% endif %}
+</section>
+
+<section class="colophon">
+    <h3 style="font-family:'Cairo',sans-serif;">بيانات النشر</h3>
+    <p>العنوان: {{ title_ar }}</p>
+    {% if author_ar %}<p>المؤلف الأصلي: {{ author_ar }}</p>{% endif %}
+    <p>النص الأصلي منشور في الملكية العامة. تشمل هذه الطبعة مقدمة تحليلية،
+       حواشي توضيحية، ومعجم مصطلحات أصلية أُعِدّت خصيصًا لهذه الطبعة.</p>
+    <p>جميع حقوق المادة التحريرية الجديدة (المقدمة، الحواشي، المعجم) محفوظة
+       للناشر. النص الأصلي في الملكية العامة.</p>
+    <p>الطبعة: {{ generation_date }}</p>
+</section>
+
+<section class="toc">
+    <h2>الفهرس</h2>
+    <ol>
+        <li><span>المقدمة</span></li>
+        {% for chapter in chapters %}
+        <li><span>{{ chapter.heading }}</span></li>
+        {% endfor %}
+        <li><span>معجم المصطلحات</span></li>
+    </ol>
+</section>
+
+<section class="introduction chapter">
+    <h2 class="section-title">المقدمة</h2>
+    {% for para in introduction_paragraphs %}
+    <p>{{ para }}</p>
+    {% endfor %}
+</section>
+
+{% for chapter in chapters %}
+<section class="chapter">
+    <h2>{{ chapter.heading }}</h2>
+    {% for para in chapter.body_paragraphs %}
+    <p>{{ para }}</p>
+    {% endfor %}
+    {% if chapter.annotations %}
+    <div class="annotations">
+        <h4>حواشٍ</h4>
+        <ol>
+            {% for note in chapter.annotations %}
+            <li><strong>{{ note.term }}:</strong> {{ note.note }}</li>
+            {% endfor %}
+        </ol>
+    </div>
+    {% endif %}
+</section>
+{% endfor %}
+
+<section class="glossary chapter">
+    <h2>معجم المصطلحات</h2>
+    <dl>
+        {% for item in glossary %}
+        <dt>{{ item.term }}</dt>
+        <dd>{{ item.definition }}</dd>
+        {% endfor %}
+    </dl>
+</section>
+
+</body>
+</html>

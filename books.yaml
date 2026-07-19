@@ -1,0 +1,100 @@
+# =============================================================================
+# Arabic KDP Publishing Factory — book queue
+# See BOOK_FACTORY.md for the full field reference.
+# =============================================================================
+- id: kalila-wa-dimna
+  type: classic
+  title_ar: كليلة ودمنة
+  author_ar: عبد الله بن المقفع
+  series: روائع التراث العربي
+  formats:
+  - paperback
+  - hardcover
+  - ebook
+  trim_size: 6x9
+  paper_type: white
+  cover_style: classic
+  source:
+    url: https://example.org/public-domain/kalila-wa-dimna.txt
+    format: text
+    encoding: utf-8
+  chapters: auto
+  status: queued
+  notes: PLACEHOLDER source URL — replace with a verified public-domain text before
+    running.
+- id: adab-al-katib
+  type: classic
+  title_ar: أدب الكاتب
+  author_ar: ابن قتيبة
+  series: روائع التراث العربي
+  formats:
+  - paperback
+  - ebook
+  trim_size: 5.5x8.5
+  paper_type: cream
+  cover_style: modern
+  source:
+    url: https://example.org/public-domain/adab-al-katib.txt
+    format: text
+    encoding: utf-8
+  chapters: auto
+  status: queued
+  notes: PLACEHOLDER source URL — replace with a verified public-domain text before
+    running.
+- id: kalila-wa-dimna-bilingual
+  type: bilingual
+  title_ar: كليلة ودمنة
+  title_en: Kalila and Dimna
+  author_ar: عبد الله بن المقفع
+  series: Classical Arabic in Translation
+  formats:
+  - paperback
+  - ebook
+  trim_size: 6.14x9.21
+  paper_type: white
+  cover_style: warm
+  source:
+    url: https://example.org/public-domain/kalila-wa-dimna.txt
+    format: text
+    encoding: utf-8
+  chapters: auto
+  status: queued
+  notes: PLACEHOLDER source URL — same underlying text as kalila-wa-dimna, packaged
+    as a facing-page Arabic/English edition.
+- id: weekly-planner-2026
+  type: lowcontent
+  title_ar: المخطط الأسبوعي ٢٠٢٦
+  series: مخططات KDP
+  formats:
+  - paperback
+  trim_size: 8.5x11
+  paper_type: white
+  cover_style: modern
+  generator: planner
+  spec:
+    kind: weekly
+    year: 2026
+    start_month: 1
+    end_month: 12
+    week_start: saturday
+    style: minimal
+    include_habit_tracker: true
+  status: queued
+- id: arabic-handwriting-workbook-1
+  type: lowcontent
+  title_ar: دفتر تمارين الخط العربي - المستوى الأول
+  series: دفاتر تعلم العربية
+  formats:
+  - paperback
+  - hardcover
+  trim_size: 8.5x11
+  paper_type: white
+  cover_style: modern
+  generator: workbook
+  spec:
+    kind: letter-tracing
+    letters: alphabet
+    lines_per_letter: 6
+    include_word_practice: true
+    difficulty: beginner
+  status: queued

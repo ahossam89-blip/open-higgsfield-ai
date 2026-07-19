@@ -139,6 +139,23 @@ MIT
 Built with [Muapi.ai](https://muapi.ai) — the unified API for AI image generation models.
 
 ---
+
+## 📚 Arabic KDP Publishing Factory
+
+This repository also hosts an unrelated automated pipeline for producing
+Arabic-language Amazon KDP books — public-domain classics with original
+Claude-generated introductions/annotations, facing-page Arabic/English
+bilingual editions with Claude-generated translations, and low-content
+planners/handwriting workbooks — each in paperback, hardcover, and/or
+EPUB3 ebook format, with series-branded covers. A weekly GitHub Action runs
+a book through generation, an automated QA gate (structural checks plus a
+Claude **vision** pass on rasterized pages — a failure quarantines the book
+and it's never packaged), and packaging, then attaches the result to a
+draft GitHub Release; a monthly Action emails a queue-health digest. See
+[`BOOK_FACTORY.md`](BOOK_FACTORY.md) for the full documentation, including
+a one-time setup checklist and a KDP upload walkthrough.
+
+---
 **Deep Dive**: For more details on the "AI Influencer" engine, upcoming "Popcorn" storyboarding features, and the future of this project, read the [full technical overview](https://medium.com/@anilmatcha/building-open-higgsfield-ai-an-open-source-ai-cinema-studio-83c1e0a2a5f1).
 
 ---
