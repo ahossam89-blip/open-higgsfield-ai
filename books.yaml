@@ -38,9 +38,9 @@
     format: text
     encoding: utf-8
   chapters: auto
-  status: queued
-  notes: PLACEHOLDER source URL — replace with a verified public-domain text before
-    running.
+  status: failed
+  notes: 'Pipeline error: 404 Client Error: Not Found for url: https://example.org/public-domain/adab-al-katib.txt'
+  updated_at: '2026-07-27T09:57:13+00:00'
 - id: kalila-wa-dimna-bilingual
   type: bilingual
   title_ar: كليلة ودمنة
