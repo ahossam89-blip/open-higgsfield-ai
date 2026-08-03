@@ -58,9 +58,9 @@
     format: text
     encoding: utf-8
   chapters: auto
-  status: queued
-  notes: PLACEHOLDER source URL — same underlying text as kalila-wa-dimna, packaged
-    as a facing-page Arabic/English edition.
+  status: failed
+  notes: 'Pipeline error: 404 Client Error: Not Found for url: https://example.org/public-domain/kalila-wa-dimna.txt'
+  updated_at: '2026-08-03T09:51:23+00:00'
 - id: weekly-planner-2026
   type: lowcontent
   title_ar: المخطط الأسبوعي ٢٠٢٦
