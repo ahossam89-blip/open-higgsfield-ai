@@ -79,7 +79,9 @@
     week_start: saturday
     style: minimal
     include_habit_tracker: true
-  status: queued
+  status: failed
+  updated_at: '2026-08-10T07:46:29+00:00'
+  notes: 'Pipeline error: ANTHROPIC_API_KEY is not set'
 - id: arabic-handwriting-workbook-1
   type: lowcontent
   title_ar: دفتر تمارين الخط العربي - المستوى الأول
