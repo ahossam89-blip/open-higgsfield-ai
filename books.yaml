@@ -99,4 +99,6 @@
     lines_per_letter: 6
     include_word_practice: true
     difficulty: beginner
-  status: queued
+  status: failed
+  updated_at: '2026-08-17T07:00:22+00:00'
+  notes: 'Pipeline error: ANTHROPIC_API_KEY is not set'
