@@ -20,6 +20,10 @@ function navigate(page) {
     import('./components/CinemaStudio.js').then(({ CinemaStudio }) => {
       contentArea.appendChild(CinemaStudio());
     });
+  } else if (page === 'promo') {
+    import('./components/PromoVideoStudio.js').then(({ PromoVideoStudio }) => {
+      contentArea.appendChild(PromoVideoStudio());
+    });
   }
 }
 

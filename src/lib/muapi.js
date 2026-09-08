@@ -1,4 +1,4 @@
-import { getModelById, getVideoModelById } from './models.js';
+import { getModelById, getVideoModelById, getI2VModelById } from './models.js';
 
 export class MuapiClient {
     constructor() {
@@ -208,6 +208,58 @@ export class MuapiClient {
 
         } catch (error) {
             console.error("Muapi Video Client Error:", error);
+            throw error;
+        }
+    }
+
+    async generateVideoFromImage(params) {
+        const key = this.getKey();
+
+        const modelInfo = getI2VModelById(params.model);
+        const endpoint = modelInfo?.endpoint || params.model;
+        const url = `${this.baseUrl}/api/v1/${endpoint}`;
+
+        const finalPayload = {
+            prompt: params.prompt,
+            image_url: params.image_url,
+        };
+
+        if (params.aspect_ratio) finalPayload.aspect_ratio = params.aspect_ratio;
+        if (params.duration) finalPayload.duration = params.duration;
+        if (params.resolution) finalPayload.resolution = params.resolution;
+
+        console.log('[Muapi] I2V Request:', url);
+        console.log('[Muapi] I2V Payload:', { ...finalPayload, image_url: '[image data]' });
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': key
+                },
+                body: JSON.stringify(finalPayload)
+            });
+
+            if (!response.ok) {
+                const errText = await response.text();
+                console.error('[Muapi] I2V API Error:', errText);
+                throw new Error(`API Request Failed: ${response.status} ${response.statusText} - ${errText.slice(0, 200)}`);
+            }
+
+            const submitData = await response.json();
+            console.log('[Muapi] I2V Submit Response:', submitData);
+
+            const requestId = submitData.request_id || submitData.id;
+            if (!requestId) return submitData;
+
+            const result = await this.pollForResult(requestId, key, 120, 2000);
+
+            const videoUrl = result.outputs?.[0] || result.url || result.output?.url;
+            return { ...result, url: videoUrl };
+
+        } catch (error) {
+            console.error("Muapi I2V Client Error:", error);
             throw error;
         }
     }
